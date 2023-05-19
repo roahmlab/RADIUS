@@ -1,0 +1,13 @@
+function mu_sigma_struct = dyn_obs_to_mu_sigma_struct(x0, y0, h0, vel, len, width, dt_seconds, t_width_seconds, t_total_seconds, lanewidth)
+    mu_sigma_data = dyn_obs_to_mu_sigmas(x0, y0, h0, vel, len, width, ...
+        dt_seconds, t_width_seconds, t_total_seconds, lanewidth);
+    mu_sigma_duration_ms_field_name = "mu_sigma_duration_ms";
+    mu_sigma_dt_ms_field_name = "mu_sigma_dt_ms";
+    mu_sigma_data_field_name = "mu_sigma_data";
+    mu_sigma_duration_ms = int64(t_width_seconds * 1000);
+    mu_sigma_dt_ms = int64(dt_seconds * 1000);
+    mu_sigma_struct = struct(...
+        mu_sigma_duration_ms_field_name, mu_sigma_duration_ms, ...
+        mu_sigma_dt_ms_field_name, mu_sigma_dt_ms, ...
+        mu_sigma_data_field_name, mu_sigma_data);
+end
