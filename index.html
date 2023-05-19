@@ -1,0 +1,414 @@
+<!DOCTYPE HTML>
+<!-- THE DOCTYPE tells the browser what type of webpage to render, the doctype used in this website is HTML5 which is the most recent HTML. -->
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8">
+	<title>RADIUS: Risk-Aware, real-time trajectory Design In Uncertain Scenarios</title>
+	<meta name="description" content="A Real-Time Reachability-based Motion Planning Algorithm for Risk-Aware Motion Planning in Uncertain Environments.">
+    <style>
+        .title{
+	    font-family: Arial, Helvetica, sans-serif;
+            text-align:center;
+            margin-top:30pt;
+            margin-bottom:0pt;
+            color:#303030;
+            font-size:40pt;
+            font-weight:900;
+            letter-spacing:0pt;
+        }
+        .midtitle{
+            font-family: Arial, Helvetica, sans-serif;
+                text-align:center;
+                margin-top:0pt;
+                margin-bottom:15pt;
+                color:#777777;
+                font-size:20pt;
+                font-weight:900;
+                letter-spacing:0pt;
+            }
+        .subtitle{
+	    font-family: Arial, Helvetica, sans-serif;
+            text-align:center;
+            margin-top:8pt;
+            margin-bottom:0;
+            margin-left: auto;
+            margin-right: auto;
+            max-width:1000px;
+            color:#303030;
+            font-size:20pt;
+            font-weight:400;
+            letter-spacing:0pt;
+        }
+        .section_title{
+	    font-family: Arial, Helvetica, sans-serif;
+            text-align:left;
+            padding-left:25pt;
+            padding-right:25pt;
+            padding-top:25pt;
+            color:#777777;
+            font-size:25pt;
+            font-weight:300;
+            letter-spacing:0pt;
+        }
+        .body{
+	    font-family: Arial, Helvetica, sans-serif;
+            color:#000000;
+            padding-right:25pt;
+            padding-left:25pt;
+            padding-bottom:25pt;
+            text-align:justify;
+            font-size:12pt;
+            font-weight:300;
+            letter-spacing:0pt;
+            line-height: 20pt;
+        }
+        .image{
+            margin-top:-15pt;
+            margin-bottom:15pt;
+            text-align: center;
+        }
+        .col{
+	    font-family: Arial, Helvetica, sans-serif;
+            text-align: center;
+            float: left;
+            width: 20%;
+            color:#000000;
+            font-size:15pt;
+            font-weight:100;
+            letter-spacing:0pt;
+            height: 25pt;
+        }   
+        .row{
+            margin-left: auto;
+            margin-right: auto;
+            max-width:940px;
+        }
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .affiliation{
+	    font-family: Arial, Helvetica, sans-serif;
+            text-align: center;
+            color:#000000;
+            font-size:10pt;
+            font-weight:100;
+            letter-spacing:0pt;
+        }
+        .container{
+            margin-left:auto;
+            margin-right:auto;
+            margin-top: 5pt;
+            max-width:940px
+        }
+        .c1{
+            color:#303030
+        }
+    </style>
+</head>
+<body style="background-color:#ffffff;">
+    <!-- Github Logo on the top-right corner -->
+    <div class="github_logo">
+        <a href="https://github.com/roahmlab/Risk_RTD" class="github-corner" aria-label="View source on Github">
+            <svg width="80" height="80" viewBox="0 0 250 250" style="fill:#333333; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+                <defs>
+                    <mask id="octomask">
+                        <path fill="white" d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+                        <path fill="black" d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+                        <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="black" class="octo-body"></path>
+                    </mask>
+                </defs>
+                <rect class="filler" width="100%" height="100%" mask="url(#octomask)"></rect>
+            </svg>
+        </a>
+        <style>
+        .github-corner:hover .octo-arm {
+            animation:octocat-wave 560ms ease-in-out
+        }
+
+        @keyframes octocat-wave {
+            0%, 100% {
+                transform:rotate(0)
+            }
+
+            20%, 60% {
+                transform:rotate(-25deg)
+            }
+
+            40%, 80% {
+                transform:rotate(10deg)
+            }
+        }
+
+        @media (max-width: 500px) {
+            .github-corner:hover .octo-arm {
+                animation:none
+            }
+
+            .github-corner .octo-arm {
+                animation: octocat-wave 560ms ease-in-out
+            }
+        }
+        </style>
+    </div>
+    <!-- Author list -->
+    <div class="section">
+        <h1 class="title">RADIUS</h1>
+        <h1 class="midtitle"><span class="c1">R</span>isk-<span class="c1">A</span>ware, real-time trajectory <span class="c1">D</span>esign <span class="c1">I</span>n <span class="c1">U</span>ncertain <span class="c1">S</span>cenarios</h1>
+        <h1 class="subtitle" style="margin-bottom: 16pt">A Real-Time Reachability-based Motion Planning Algorithm for Risk-Aware Motion Planning in Uncertain Environments.</h1>
+        <h1 class="subtitle" style="margin-bottom: 16pt">RSS 2023</h1>
+
+        <div class="row" style="max-width: 1200px; height: 80pt">
+            
+            <!-- <div class="col" style="width: 50%; line-height: 50pt;">
+                <a href="https://arxiv.org/pdf/2302.07933.pdf">
+                    <img src="./web_elements/test_thumb.jpeg" height="25pt" />
+                </a>
+            </div> -->
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/jinsun_web.png" alt style="border-radius: 50%; "height="120pt" />
+            </div>
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/challen_web.png" alt style="border-radius: 50%;" height="120pt" />
+            </div>
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/lucaslym_web.png" alt style="border-radius: 50%;" height="120pt" />
+            </div>
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/vishrut_web.png" alt style="border-radius: 50%;" height="120pt" />
+            </div>
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/Lena_web.png" alt style="border-radius: 50%;" height="120pt" />
+            </div>
+            <div class="col" style="width: 16.6%; line-height: 50pt;">
+                <img src="./web_elements/ramv_web.png" alt style="border-radius: 50%;" height="120pt" />
+            </div>
+
+        </div>
+
+        <!-- Author name-->
+        <div class="row" style = "max-width: 1200px;">
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Jinsun Liu*</p>
+            </div>
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Challen Enninful Adu*</p>
+            </div>
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Lucas Lymburner</p>
+            </div>
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Vishrut Kaushik</p>
+            </div>
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Lena Trang</p>
+            </div>
+            <div class="col" style="font-weight: 200; width: 16.6%">
+                <p>Ram Vasudevan</p>
+            </div>
+        </div>    
+        <!-- Mailbox -->
+        <div class="row" style = "max-width: 1200px;">
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>jinsunl@umich.edu</p>
+            </div>
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>enninful@umich.edu</p>
+            </div>
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>llymburn@umich.edu</p>
+            </div>
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>vishrutk@umich.edu</p>
+            </div>
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>ltrang@umich.edu</p>
+            </div>
+            <div class="col", style="font-size:10pt; width: 16.6%">
+                <p>ramv@umich.edu</p>
+            </div>
+        </div> 
+
+        <!-- Footnotes -->
+        <div class="row">
+            <div class="col", style=" width: 100%; font-size:11pt;">
+                <p>* Equal Contribution</p>
+            </div>
+        </div> 
+
+        <!-- Authors affiliation -->
+        <div class="affiliation">
+            <p>All authors affiliated with the Robotics Department and the Department of Mechanical Engineering of the University of Michigan, Ann Arbor.</p>
+        </div>
+        <!-- Links -->
+        <div class="row" style="margin-left:auto; margin-right:auto; margin-top:10pt;max-width:300px;">
+            <div class="col" style="width: 50%; line-height: 50pt;">
+                <a href="https://arxiv.org/pdf/2302.07933.pdf">
+                    <img src="./web_elements/paper.png" height="25pt"/>
+                </a>
+            </div>
+            <div class="col" style="width: 50%; line-height: 50pt;">
+                <a href="https://github.com/roahmlab/RADIUS">
+                    <img src="./web_elements/github.png" height="25pt" style="opacity:.85"/>
+                </a>
+            </div>
+        </div>
+        <!-- Link name -->
+        <div class="row" style="margin-left:auto; margin-right:auto; max-width:300px; line-height: 10pt;">
+            <div class="col" style="width: 50%; font-size:10pt; font-weight: 500;">
+                <p>Paper</p>
+            </div>
+            <div class="col" style="width: 50%; font-size:10pt; font-weight: 500;">
+                <p>&lt;/Code&gt;</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teaser Video -->
+    <div class="container" style="padding-top: 0pt; margin-top: 0pt; margin-top: 0pt;">
+        <video autoplay muted loop width="100%">
+            <source src="./web_elements/Risk_multi.mp4" type="video/mp4">
+        </video>
+        <p class="body">
+            <b>RADIUS</b> generates real-time, motion plans that guarantee robot safety up to a given risk threshold in the presence of uncertainty of obstacle motions. 
+            </p>
+    </div>
+
+    <!-- Overview Video -->
+    <!-- <div class="container" style="padding-top: 0pt;">
+        <h2 class="section_title">Video</h2>
+        <video autoplay muted loop width="100%">
+            <source src="./web_elements/overview_vid.mp4" type="video/mp4">
+        </video>
+    </div> -->
+
+    <!-- <div class="container" style="padding-top: 0pt;">
+        <video autoplay muted loop width="100%">
+            <source src="https://private-user-images.githubusercontent.com/61212532/237856344-3672f631-b3ec-4d02-93da-b21d1178f415.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJrZXkxIiwiZXhwIjoxNjgzODYwMzM0LCJuYmYiOjE2ODM4NjAwMzQsInBhdGgiOiIvNjEyMTI1MzIvMjM3ODU2MzQ0LTM2NzJmNjMxLWIzZWMtNGQwMi05M2RhLWIyMWQxMTc4ZjQxNS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBSVdOSllBWDRDU1ZFSDUzQSUyRjIwMjMwNTEyJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDIzMDUxMlQwMjUzNTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mZjM5NjI1NjgyYmU0NzAzNTQyYWVmYTkwOTRiOWUxNGNmYWJlNmE3MDkzMTA0YTAzZGMzNGJhYWIyMjJiNmFlJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.DgwdJl0__gSTZnQOZU3dUF6Wska6ulayKddp0WSuMRc">
+        </video>
+    </div> -->
+<!-- 
+    <div class="container" style="padding-top: 0pt;">
+        <h2 class="section_title">Overview Video</h2>
+        <video width="100%" controls>
+            <source src="https://user-images.githubusercontent.com/13129304/160706120-fc7aa07b-84d0-4dc2-9630-8289401880d8.mp4">
+        </video>
+    </div> -->
+
+    <!-- Abstract -->
+    <div class="container">
+        <h2 class="section_title" style="margin-top: 0pt;">Abstract</h2>
+        <p class="body">
+            Deterministic methods for motion planning guarantee safety amidst uncertainty in obstacle locations by trying to restrict the robot from operating in any possible location that an obstacle could be in which is overly conservative. 
+            Chance-constrained optimization can be applied to improve the performance of motion planning algorithms by allowing for a user-specified amount of bounded constraint violation.
+            However, state-of-the-art methods either rely on moment-based inequalities, which can be overly conservative, cannot run in real-time, or make it difficult to satisfy assumptions about the class of probability distributions used to model uncertainty.
+            To address these challenges, this work proposes a real-time, risk-aware reachability based motion planning framework called RADIUS. 
+            RADIUS performs real-time optimization to construct a trajectory that can be followed by the robot in a manner that is certified to have a risk of collision that is less than or equal to a user-specified threshold.
+            This is done without restricting the probability distribution used to model uncertainty to a simple class (e.g., Gaussian). 
+            The proposed algorithm is compared to several state-of-the-art chance-constrained and deterministic methods in simulation, and is shown to consistently outperform them in a variety of driving scenarios and is demonstrated to work on hardware.
+        </p>
+    </div>
+
+    <!-- Method -->
+    <div class="container">
+        <h2 class="section_title">Method</h2>
+        <div style="text-align: center;">
+            <img src="./web_elements/RADIUS_bigpic.png", width="700pt">
+        </div>
+        <p class="body">
+            RADIUS first performs offline reachability analysis using a closed-loop full-order vehicle dynamics to construct a series of control-parameterized, zonotope reachable sets (shown as dark gray boxes) that over-approximate all possible behaviors of the ego vehicle over the planning horizon.
+            During online planning, given some user-defined risk of collision (&#1013;) for the motion plan, RADIUS constructs a trajectory by solving an optimization problem that selects subsets of pre-computed zonotope reachable sets that are certified to have a no greater than &#1013; risk of colliding with any obstacles. 
+            In the image above, the moving obstacles shown in white and the 3-&sigma; regions of the corresponding probability distributions for the obstacle locations are shown as the purple and blue ellipses where the probability density from low to high is illustrated from blue to purple.
+            The subsets of the dark gray zonotope reachable sets corresponding to the trajectory parameter shown in green ensures a collision-free path that is guaranteed to have a no greater than &#1013; risk of colliding with all obstacles, while the two trajectory parameters and their corresponding reachable sets shown orange may have a greater than &#1013; risk of collision with the moving obstacles.
+            </p>
+        <div style="text-align: center;">
+            <img src="./web_elements/overapproximation_fig.png", width="900pt">
+        </div>
+        <p class="body">
+        The key to being able to solve this optimization in real-time is the closed-form over-approximation of the risk of collision, which allows us to provide analytical gradients to the optimization.
+        From left-to-right the process to obtain this closed-form over-approximation is as follows: a) we first represent our risk of collision as an integral of a Probability Density Function (PDF) of the obstacle location over the ego vehicle reachable set;
+        b) next we generate a grid of simplices to over-approximate the integration domain;
+        c) next we over-approximate the PDF using a 2nd order Taylor expansion and interval arithmetic;
+        d) with the resulting integral of a quadratic polynomial over a set of simplices we are able to compute a closed-form solution to this integral that tightly over-approximates the actual risk of collision.
+        Note that this process is parallelizable and an algorithm for parallelization is provided in the paper.
+        </p>
+    </div>
+
+    <!-- Results -->
+    <div class="container">
+        <h2 class="section_title">Results</h2>
+        <p class="body" style="padding-bottom: 0pt">RADIUS is compared to a variety of state-of-the-art algorithms, and is shown to outperform them in a variety of driving scenarios.
+        </p>
+        <h2 class="section_title" style="font-size: 15pt; padding-top: 0pt;">3-Lane Highway Simulations </h2>
+        <p class="body">RADIUS is compared to <a href="https://arxiv.org/pdf/2211.11997.pdf">REFINE</a>, <a href="https://deepblue.lib.umich.edu/handle/2027.42/169729">CCPBA</a> and <a href="https://arxiv.org/pdf/2002.10999.pdf">Cantelli MPC</a> in a 1000m long, 3-lane highway simulation where the goal is to be able to navgate through the dense traffic and reach the end of the highway.
+            Each of the algorithms has the level of risk it is allowed to drive with set to a maximum of 5% (&#1013; = 0.05) risk of collision for each planning iteration.
+            As REFINE is a deterministic motion planning algorithm, it does not have an associated risk level, and tries to drive while ensure that there is no chance of collisions. 
+            This leads to the conservative behavior seen below.
+            RADIUS is able ot outperform all of these methods and reach the end of the highway while all the other methods are unabel to do so due to the dense traffic on the highway.
+        </p>
+        <div class="container" style="padding-top: 0pt;">
+            <video autoplay muted loop width="100%" controls>
+                <source src="./web_elements/Multiplanning_iterations_website.mp4" type="video/mp4">
+            </video>
+        </div>
+        <!-- <h2 class="section_title" style="font-size: 13pt;">3-Lane Highway Lane Change simulations </h2>
+        <p class="body">Here each method is given a waypoint in the lane immediately to the left of the vehicle to prompt a lane change.
+            As each of these methods significantly over-approximate the risk of collision, and REFINE does not tolerate any risk of collision, we observe that none of the compared methods are able to execute the lane change due to the tight window they have.
+            Whereas, RADIUS, due to the tighter over-approximation of the risk of collision is able to succesfully execute the lane change.
+        </p> -->
+        <!-- <div class="container" style="padding-top: 0pt;">
+            <video autoplay muted loop width="100%">
+                <source src="./web_elements/Risk_multi.mp4" type="video/mp4">
+            </video>
+        </div> -->
+        <h2 class="section_title" style="font-size: 15pt;">Left Turning experiments </h2>
+        <p class="body">Executing unguarded left turns requires the autonomous agent to be able to navigate through tight gaps in oncoming traffic. 
+            Being conservative in these environments often cause autonomous vehicles to spend long periods waiting at the intersection unable to navigate through.
+            Below we see RADIUS navigating through this intersection at various risk levels (&#1013;).
+            Notice that RADIUS is more aggressive at higher risk thresholds allowing it to execute the left turn earlier, whereas at lower risk thresholds it chooses to be more conservative and wait longer.
+        </p>
+        <div class="container" style="padding-top: 0pt;">
+            <video autoplay muted loop width="100%" controls>
+                <source src="./web_elements/Leftturning_website.mp4" type="video/mp4">
+            </video>
+        </div>
+        <h2 class="section_title" style="font-size: 15pt;">Hardware Lane Change Experiments </h2>
+        <p class="body">
+            Below we see RADIUS on a F1/10th TRAXXAS RC platform attempting to execute an overtaking manuever at different risk thresholds (&#1013;).
+            Notice that at higher risk thresholds the vehicle succesfully executes the overtaking manuever, whereas at smaller thresholds it chooses to just stay in lane.
+        </p>
+        <div class="container" style="padding-top: 0pt;">
+            <video autoplay muted loop width="100%" controls>
+                <source src="./web_elements/hardware_lanechange_website.mp4" type="video/mp4">
+            </video>
+        </div>
+        <h2 class="section_title" style="font-size: 15pt;">Hardware Collision avoidance </h2>
+        <p class="body">
+            Below we see RADIUS on a F1/10th TRAXXAS RC platform executing manuevers to avoid an adversarial agent that drives into the ego vehicle path at various risk thresholds (&#1013;).
+            Notice that at higher risk thresholds the vehicle executes an aggresive lane change to avoid the vehicle, whereas at smaller thresholds it executes a failsafe stopping maneuver to avoid collision.
+        </p>
+        <div class="container" style="padding-top: 0pt;">
+            <video autoplay muted loop width="100%" controls>
+                <source src="./web_elements/hardware_adversarial_website.mp4" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <!-- Citation -->
+    <div class="container" style="background-color:#f2f2f2">
+        <h2 class="section_title">Citation</h2>
+        <ul class="body" style="padding-left:50pt; font-size: 10pt; line-height: 15pt;">
+            <li>RADIUS was developed in <a href="http://www.roahmlab.com">Robotics and Optimization for Analysis of Human Motion (ROAHM) Lab</a> at University of Michigan - Ann Arbor.</li>
+            <ul style="padding-left:0"><div style="background-color:#e6e6e6;">
+                <p class="body" style="padding-left:0pt; font-size: 10pt;padding-bottom:0;text-indent:-3rem;margin-left:4rem;font-family:monospace;line-height: 1.2rem;">  @article{9792203, <br>
+                    author={Jinsun Liu and Challen Enninful Adu and Lucas Lymburner and Vishrut Kaushik and Lena Trang and Ram Vasudevan}, <br>
+                    journal={Robotics, Science and Systems 2023}, <br>
+                    title={RADIUS: Risk-Aware, Real-Time, Reachability-Based Motion Planning}, <br>
+                    year={2023}, <br>
+                    doi={https://doi.org/10.48550/arXiv.2302.07933}}</p>
+            </div></li>
+        </ul>
+    </div>
+</body>
+</html>
