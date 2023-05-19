@@ -2,7 +2,7 @@
 RADIUS is a risk-aware real-time trajectory planning framework for autonomous driving. 
 RADIUS uses Offline zonotope-based reachability analysis on the full order vheicle dynamics to compute the corresponding control-parametrized, over-approximative Forward Reachable Sets (FRS). 
 Real-time trajectory planning is achieved by solving an optimization framework in real-time with the pre-computed, control-parametrized FRS being used to ensure vehicle safety up to a given threshold.
-The link to the project website can be found [here](https://roahmlab.github.io/Risk_RTD/).
+The link to the project website can be found [here](https://roahmlab.github.io/RADIUS/).
 
 <p align="center">
   <img height="300" src="/util/RADIUS_bigpic.png"/>
@@ -28,8 +28,7 @@ RADIUS is built on Ubuntu 20.04 with ROS Noetic Distribution, and the algorithms
 ```
 - Run [install.m](https://github.com/roahmlab/RADIUS/blob/main/install.m).
 - In [`split.m`](https://github.com/roahmlab/RADIUS/blob/main/split.m), replace line 20 with ```cd(your_matlab_directory/toolbox/matlab/strfun)``` and line 22 with ```cd('your_CORA2018_directory/global functions/globOptimization')```.
-Notice [CORA2018](https://tumcps.github.io/CORA/) is download automatically by ```./download-dependencies.sh```, so it should appear inside [util](https://github.com/roahmlab/RADIUS/tree/main/util).
-
+Notice [CORA2018](https://tumcps.github.io/CORA/) is downloaded automatically by ```./download-dependencies.sh```, so it should appear inside [util](https://github.com/roahmlab/RADIUS/tree/main/util).
 <!-- - Run dockerfile (need to modify this line once Lucas uploads the file).
 - Lunch docker (need to modify this line once Lucas uploads the file).
 - Run MATLAB inside docker (need to modify this line once Lucas uploads the file).
