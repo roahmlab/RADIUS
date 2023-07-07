@@ -16,6 +16,6 @@
   4. Click 'Install and Activate', then click 'View Current Activations' under 'RELATED TASKS'.
   5. Click 'Activate a Computer', then fill in the activation form. Note to choose 'R2022a' as the release version. 
 * Open another terminal, and get the 'CONTAINER ID' using `docker ps`. Run `docker exec -it replace_with_your_CONTAINER_ID /bin/bash` to enter the same running docker container, and run `./ninja-cpp-opt.sh` to build the necessary MEX file.
-* Run [fully_preprocess_frs.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/online/fully_preprocess_frs.m) to generate the C++ condensed version of the FRSes needed. Note that setting the ```is_left_turn``` variable to ```false``` and ```true``` processes FRSes for the highway simulations and left turning simulations respectively.
+* Run [fully_preprocess_frs.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/fully_preprocess_frs.m) to generate the C++ condensed version of the FRSes needed. Note that setting the ```is_left_turn``` variable to ```false``` and ```true``` processes FRSes for the highway simulations and left turning simulations respectively.
 * In MATLAB invoked by `./run-matlab.sh`, open [RADIUS_simulation_main.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/online/RADIUS_simulation_main.m) and run the script. Note that setting the ```scene_type``` variable to 1 and 2 runs the highway simulations and left turning simulations respectively.
 
