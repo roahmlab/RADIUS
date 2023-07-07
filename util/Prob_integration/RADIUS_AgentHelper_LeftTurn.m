@@ -1,4 +1,4 @@
-classdef RADIUS_AgentHelper_Highway < agentHelper
+classdef RADIUS_AgentHelper_LeftTurn < agentHelper
     %% properties
     properties
         % hard reference bounds for parameters
@@ -15,7 +15,7 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
         S;
         vx_des = 5; 
         y_des;
-        
+
 
         plot_flag = 1;
         % reference data for plot
@@ -23,17 +23,16 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
         proposed_ref_Z = [];
         t_real_start = [];
         t_proposed_start = [];
-        FRS_plot_struct;
         
         
         prev_action = -1;
         cur_t0_idx = 1;
-        py_idx = 0;
 
-        FRS_helper_handle = struct;
+
         
-
-        saved_p = [];
+        FRS_helper_handle = struct;
+ 
+        saved_p = [];        
         waypt_hist = [];
         p_hist = [];
         FRS_hist = {};
@@ -41,17 +40,18 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
         state_hist = [];
         type_manu_hist = [];
         time_hist = [];
-        solve_time_hist = [];
         
+        FRS_plot_struct;
+
         fixed_thres = [];
-        
-        % auxilary variable for debugging
+
         wpt_global = [];
         wpt_takeover = []; % one time waypoint takeover
+
     end
     %% methods
     methods
-        function AH = RADIUS_AgentHelper_Highway(A,FRS_obj,HLP,varargin)
+        function AH = RADIUS_AgentHelper_LeftTurn(A,FRS_obj,HLP,varargin)
             AH@agentHelper(A,FRS_obj,varargin{:});
             AH.HLP = HLP;
         end
@@ -62,40 +62,73 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
             % return the distance in parameter space and return a replace
             % flag based on if a proper replace action is found
 
-            tic;
-            % check if needs to generate a new plan
-            if (AH.cur_t0_idx > 1 && AH.prev_action == 2) || (AH.cur_t0_idx > 2 && AH.prev_action == 3)|| AH.prev_action  == 1
+
+            if ~isempty(AH.wpt_takeover)
+                waypts = AH.wpt_takeover;
+            end
+
+            if (AH.cur_t0_idx > 1 && AH.prev_action == 2) || (AH.cur_t0_idx > 2 && AH.prev_action == 3)|| AH.prev_action  == 1 || AH.prev_action == 4
                 AH.prev_action = -1;
                 AH.cur_t0_idx = 1;
             end
             
-            % check if a lane change maneuver is still being executed
-            if AH.prev_action ~= -1 
-                p = [AH.saved_p(1); AH.saved_p(2); AH.cur_t0_idx ;AH.prev_action];
-                AH.cur_t0_idx = AH.cur_t0_idx + 1;
-                tout = 0;
-                return
+
+            %% left turn planning starts here
+
+            frs_filepath = "/data/cpp_processed_CUDA_LeftTurn_frs.frs.bin";
+
+            world_dyn_obs = [];
+            for wall_cons_idx = 1:length(world_info.wall_constraintbox)
+                wall_cons_i = world_info.wall_constraintbox{wall_cons_idx};
+                max_vals = max(wall_cons_i');
+                min_vals = min(wall_cons_i');
+                x_min = min_vals(1);
+                x_max = max_vals(1);
+                y_min = min_vals(2);
+                y_max = min_vals(2);
+                world_dyn_obs = [world_dyn_obs, get_world_bounds_as_dyn_obs(...
+                                                    x_min, x_max, ...
+                                                    y_min, y_max)];
             end
             
-            % get info of world boundary, waypoint, and vehicle state
-            world_x_min = world_info.bounds(1);
-            world_x_max = world_info.bounds(2);
-            world_y_min = world_info.bounds(3);
-            world_y_max = world_info.bounds(4);
-            world_dyn_obs = get_world_bounds_as_dyn_obs(...
-                world_x_min, world_x_max, ...
-                world_y_min, world_y_max);
+
             waypoint_global = waypts(:,1);
             ego_vehicle_state = agent_state(1:6);
+            chooseable_dyn_obs_field_name = "dyn_obs";
+            chooseable_mu_sigma_field_name = "mu_sigma";
 
+            chooseable_obs_curr = struct(...
+                chooseable_mu_sigma_field_name, [], ...
+                chooseable_dyn_obs_field_name, []);
+            chooseable_obs_set = [chooseable_obs_curr];
+            chooseable_obs_set(1) = [];
+
+	    sigma_x_local_fcn = @(local_length, local_width, lanewidth) (local_length/2/3).^2;
+	    sigma_y_local_fcn = @(local_length, local_width, lanewidth) (1.32/2/3).^2;
+            empty_mu_sig_struct = ...
+                dyn_obs_to_mu_sigma_struct(...
+                      0.0, 0.0, 0.0, ... % x0, y0, h0
+                      0.0, 1.0, 2.2, ... % vel, len, width
+                      0.01,          ... % dt_seconds
+                      0.01,          ... % t_width_seconds
+                      13.0,          ... % t_total_seconds
+                      AH.S.W.lanewidth,  ... % lanewidth
+                      0.0, ...
+                      sigma_x_local_fcn, ...
+                      sigma_y_local_fcn  ...
+                  );
+            always_risky = [empty_mu_sig_struct];
+            always_risky(:) = [];
+
+            
             % gather obstacle info
             env_cars = world_info.envCars;
             env_vel = env_cars(:,2)';
             assert(~isempty(AH.A.time))
-            env_x0 = env_cars(:,1)' + AH.A.time(end) .* env_vel;
+            env_x0 = env_cars(:,1)';
             env_y0 = env_cars(:,3)';
             zer = zeros(size(env_x0));
-            env_h0 = zer;
+            env_h0 = env_cars(:,4)';
             obs_length = zer + 4.8; % bring in obs footprint
             obs_width = zer + 2.2;
             env_mat = [env_x0;
@@ -104,58 +137,10 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                        env_vel;
                        obs_length;
                        obs_width];
-            dist_arr = abs(env_x0 - agent_state(1));
-
-            % throw away obstacles if they are too far away from us
-            min_dists = min_dist_between_ego_and_dyn_obs(...
-                5, ...
-                min([agent_state(4)+5, 30.1]), ...
-                env_vel, ...
-                agent_state(1), ...
-                env_x0, ...
-                13);
-            env_mat(:, or(min_dists > 14, dist_arr > 30*13)) = []; 
-            origin_fp = [0; 0; 0; 0; 4.8; 2.2];
-            env_mat(:, all(env_mat == origin_fp, 1)) = [];
-
-            % gather static obstacles
             static_obs_idx = env_mat(:, env_mat(4,:) == 0);
             env_mat(:, env_mat(4,:) == 0) = [];
-            world_dyn_obs = [world_dyn_obs static_obs_idx];
-
-
-            dt_sec = 0.01;
-            chooseable_dyn_obs_field_name = "dyn_obs";
-            chooseable_mu_sigma_field_name = "mu_sigma";
-
-	    sigma_x_local_fcn = @(local_length, local_width, lanewidth) (local_length/2/3).^2;
-	    sigma_y_local_fcn = @(local_length, local_width, lanewidth) (1.32/2/3).^2;
-
-            % generate pdf structures for c++
-            empty_mu_sig_struct = ...
-                dyn_obs_to_mu_sigma_struct(...
-		            0.0, 0.0, 0.0, ... % x0, y0, h0
-                            0.0, 1.0, 2.2, ... % vel, len, width
-		            0.01,          ... % dt_seconds
-		            0.01,          ... % t_width_seconds
-		            13.0,          ... % t_total_seconds
-		            AH.S.W.lanewidth, ... % lanewidth 
-                    0.0, ... % t_now
-		            sigma_x_local_fcn, ...
-		            sigma_y_local_fcn  ...
-                        );
-            empty_always_risky = [empty_mu_sig_struct];
-            empty_always_risky(:) = [];
-            chooseable_obs_curr = struct(...
-                chooseable_mu_sigma_field_name, [], ...
-                chooseable_dyn_obs_field_name, []);
-            chooseable_obs_set = [chooseable_obs_curr];
-            chooseable_obs_set(1) = [];
             
-            % Note our zonotope reacchable sets have various time
-            % durations, thus here we generate pdfs over all possible time
-            % intervals of various lengths that may accord with one
-            % zonotope reachable set. 
+            dt_sec = 0.01;
             for obs_idx = 1:size(env_mat, 2)
                 dyn_obs_curr = env_mat(:, obs_idx);
                 vel = dyn_obs_curr(4);
@@ -164,17 +149,10 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                 h0 = dyn_obs_curr(3);
                 len = dyn_obs_curr(5);
                 width = dyn_obs_curr(6);
+                t_now = AH.A.time(end);
                 for i = 1:16
                     t_width_sec = dt_sec * i;
-                    curr_mu_sigma_struct = dyn_obs_to_mu_sigma_struct(...
-                        x0, y0, h0, ...
-                        vel, len, width, ...
-                        dt_sec, t_width_sec, 13.0, ...
-                        AH.S.W.lanewidth,  ... % lanewidth
-                        0.0, ...
-                        sigma_x_local_fcn, ...
-                        sigma_y_local_fcn  ...
-                    );
+                    curr_mu_sigma_struct = dyn_obs_to_mu_sigma_struct(x0, y0, h0, vel, len, width, dt_sec, t_width_sec, 5.5, AH.S.W.lanewidth, t_now, sigma_x_local_fcn, sigma_y_local_fcn);
                     if i == 1
                         curr_mu_sigmas_chooseable = zeros([0 0]);
                         curr_mu_sigmas_chooseable = [curr_mu_sigma_struct];
@@ -184,36 +162,36 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                 end
                 chooseable_obs_curr = struct(chooseable_mu_sigma_field_name, curr_mu_sigmas_chooseable, chooseable_dyn_obs_field_name, dyn_obs_curr);
                 if obs_idx == 1
-                    chooseable_obs_set = [chooseable_obs_curr];
+                    always_risky = [curr_mu_sigmas_chooseable];
                 else
-                    chooseable_obs_set = [chooseable_obs_set chooseable_obs_curr];
+                    always_risky = [always_risky; curr_mu_sigmas_chooseable];
                 end
             end
 
-            % this is where online planning is solved in c++
-            frs_filepath = "/data/cpp_processed_CUDA_Highway_frs.frs.bin";
-            risk_cpp_output = RISK_RTD_MEX(ego_vehicle_state, ...
-                waypoint_global, ...
-                chooseable_obs_set, ...
-                world_dyn_obs, ...
-                empty_always_risky, ...
-                frs_filepath, ...
-                AH.fixed_thres, ...
-                true, ...
-                true, ...
-                true, ...
-		        false ...
+            
+
+            risk_cpp_output = RISK_RTD_MEX(...
+                ego_vehicle_state,  ... % EGO STATE GLOBAL FRAME
+                waypoint_global,    ... % WAYPOINT GLOBAL FRAME
+                chooseable_obs_set, ... % OBSTACLES VARIABLE REFINE/RISK
+                world_dyn_obs,      ... % OBSTACLES ALWAYS REFINE
+                always_risky,       ... % OBSTACLES ALWAYS RISK
+                frs_filepath,       ... % FRS FILE PATH
+                AH.fixed_thres,     ... % RISK THRESHOLD
+                false,              ... % CHECK MIRRORS?
+                false,              ... % USE WAYPOINT MOD. HEURISTC?
+                false,              ... % USE FINAL SELECTION HEURISTIC?
+                true                ... % USE LEFT COST FUNCTION?
             );
 
-            % parsing planning result
+
+            AH.cur_t0_idx = 1; % table here has extra cols for mirroring
+            AH.wpt_global = waypoint_global;
+            type_manu = 4; % left turning
+            p = [];
             if risk_cpp_output(1) == 1 % success
-                manu_type = risk_cpp_output(4);
                 param_val_unmirrored = risk_cpp_output(2);
                 is_mirrored = logical(risk_cpp_output(3));
-                u0 = risk_cpp_output(5);
-                u0_idx = risk_cpp_output(6) + 2;
-                idx0 = risk_cpp_output(7) + 1;
-                idx1 = risk_cpp_output(8) + 1;
                 if is_mirrored
                     multiplier = -1;
                     param_val = -param_val_unmirrored;
@@ -221,53 +199,37 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                     multiplier = 1;
                     param_val = param_val_unmirrored;
                 end
-                if manu_type == 1
-                    p = [param_val; 0; 1; manu_type];
-                    AH.cur_t0_idx = 1;
-                    AH.prev_action = -1;
-                else
-                    p = [u0; param_val; AH.cur_t0_idx; manu_type];
-                    AH.prev_action = manu_type;
-                    AH.cur_t0_idx = 2;
-                    AH.py_idx = idx1 + (2 * is_mirrored);
-                    AH.saved_p = p;
-                end
-                AH.wpt_global = waypts(1:2);
+               
+                % p = [u_final; p_y; t0_idx;type_manu]; 
+                p = [AH.zono_full.LeftTurnFRS(1).u_final; param_val; AH.cur_t0_idx; type_manu];
+                AH.prev_action = type_manu;
+                AH.cur_t0_idx = 2;
+                AH.saved_p = p;
                 
-                tout = 0;
-                M = AH.zono_full.M_mega{u0_idx};
-                type_manu_all = ["Au","dir","lan"];
-                type_text = type_manu_all(manu_type);
-                FRS = M(type_text); 
-                if size(FRS,1) == 1
-                    FRS = FRS';
-                end
-
-                % info for visualizing FRS
-                FRS = FRS{idx0,idx1};
+                % plot info
+                FRS = AH.zono_full.LeftTurnFRS(1);
                 AH.FRS_plot_struct.p = param_val;
-                AH.FRS_plot_struct.type_manu = manu_type;
+                AH.FRS_plot_struct.type_manu = type_manu;
                 AH.FRS_plot_struct.FRS = FRS;
                 AH.FRS_plot_struct.agent_state = agent_state;
                 AH.FRS_plot_struct.multiplier = multiplier;
                 AH.FRS_plot_struct.mirror_flag = is_mirrored;
 
-    
                 % data to be saved if needed
                 AH.FRS_hist{end+1} = FRS;
                 AH.mirror_hist = [AH.mirror_hist is_mirrored];
-                AH.type_manu_hist = [AH.type_manu_hist manu_type];
+                AH.type_manu_hist = [AH.type_manu_hist type_manu];
                 AH.p_hist = [AH.p_hist param_val];
                 AH.waypt_hist = [AH.waypt_hist waypoint_global];
                 AH.state_hist = [AH.state_hist agent_state];
                 AH.time_hist = [AH.time_hist AH.A.time(end)];
-            else % not success
-                p = [];
-                tout = 0;
             end
+            tout = 0;
+            return;
         end
+        
         function plot_FRS(AH)
-            if isstruct(AH.FRS_plot_struct) && ~isempty(AH.FRS_plot_struct.p)
+            if ~isempty(AH.FRS_plot_struct)
                 p = AH.FRS_plot_struct.p;
                 type_manu = AH.FRS_plot_struct.type_manu;
                 FRS = AH.FRS_plot_struct.FRS;
@@ -289,6 +251,8 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                 end
             end
         end
+
+        
         function p = convert_action_to_parameter(AH,action,discrete_flag)
             % called in parent class. differnet for each helper
             delta_struct = struct;
@@ -301,6 +265,7 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                     delta_struct.vx_des = -2;
                 elseif any(newAct == [3])%H
                     delta_struct.vx_des = -4;
+                else
                 end
                 
                 if any(newAct == [4])
@@ -330,23 +295,25 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
             %above is for delta vx and delta y, the following is for actual
             %parameters,      : vx and delta y
             p = AH.update_desired_parameters(delta_struct);
-            p(2) = delta_struct.y_des; %skipping the previous step y change
+            p(2) = delta_struct.y_des; %skipping the previous step y change check!!
             
         end
         function [T, U, Z]=gen_ref(AH, p, ~,agent_state, ~)
-            % generate reference trajectory based on parameter and states
+            % generate reference based on parameter and states
             if ~exist('agent_state','var')
                 agent_info = AH.get_agent_info();
                 agent_state = agent_info.state(:,end);
             end
             u_cur = agent_state(4) ;
-            p_u = p(1);
+            p_u = p(1); %K = [Au; Ay; t0_idx; type_manu];
             p_y = p(2);
             t0_idx = p(3);
             t0 = (t0_idx-1)*AH.t_move;
             type_manu = p(4);
             if type_manu == 3
                 [T, U,Z] = gaussian_T_parameterized_traj_with_brake(t0,p_y,p_u,u_cur,[],0,1);
+            elseif type_manu == 4
+                [T, U,Z] = parametrized_turnning_with_brake(p_u,p_y,0);
             else
                 [T, U,Z] = sin_one_hump_parameterized_traj_with_brake(t0,p_y,p_u,u_cur,[],0,1);
             end
@@ -358,7 +325,10 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
             agent_info = AH.get_agent_info();
             agent_state = agent_info.state(:,end);
             v_cur = agent_state(4) ;
+            %             h_cur = agent_state(3) ;
             y_cur = agent_state(2) ;
+            %             x_cur = agent_state(1) ;
+            %             replaced_flag = 0;
             
             if abs(delta_struct.vx_des)> AH.eps
                 AH.vx_des = round(v_cur,1) + delta_struct.vx_des;
@@ -418,14 +388,13 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
             %slice level 0, don't slice
             % 1, slice initial condition
             % 2, slice initial and desired
-            if K(2) == 0
-                slice_dim = 11;
-                k_slice = K(1);
-            else
-                slice_dim = 12;
-                k_slice = K(2);
-            end
-            for t_idx = 1:length(FRS.vehRS_save) % 1:10/AH.truncating_factor:length(FRS.vehRS_save)
+
+            slice_dim = 12;
+            k_slice = K(2);
+
+            
+            
+            for t_idx = 1:length(FRS.vehRS_save) 
                 if slice_level == 0
                     zono_one = FRS.vehRS_save{t_idx};
                 elseif slice_level == 1
@@ -439,7 +408,7 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
                 if mirror_flag
                     h.YData = - h.YData;
                 end
-                XY = [h.XData(:) h.YData(:)]; % Create Matrix Of Vectors
+                XY = [h.XData(:) h.YData(:)];                                     % Create Matrix Of Vectors
                 theta = agent_state(3);
                 R=[cos(theta) -sin(theta); sin(theta) cos(theta)]; %CREATE THE MATRIX
                 rotXY=XY*R'; %MULTIPLY VECTORS BY THE ROT MATRIX
@@ -454,6 +423,9 @@ classdef RADIUS_AgentHelper_Highway < agentHelper
             end
         end
 
+
+        
+        
+    
     end
 end
-

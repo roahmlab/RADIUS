@@ -5,27 +5,24 @@ addpath(genpath('/simulator'));
 input_dir = '/data';
 output_dir = '/data';
 
-% input_fname = 'CUDA_RoverFRS_2rnd_grid24_no_Gobs.mat';
-% cpp_processed_output_fname = 'CUDA_RoverFRS_2rnd_grid24.DBG';
+is_left_turn = true; % set it to false to preprocess FRS of highway scenarios
 
-% input_fname = 'CUDA_RoverFRS_2rnd_grid24.mat';
-% cpp_processed_output_fname = 'CUDA_RoverFRS_2rnd_grid24.DBG';
+if ~is_left_turn
+    input_fname = 'CUDA_Highway_frs.mat';
+    cpp_processed_output_fname = 'cpp_processed_CUDA_Highway_frs.frs.bin';
+    input_fpath = string(fullfile(input_dir, input_fname));
+    cpp_processed_fpath = string(fullfile(output_dir, cpp_processed_output_fname));
+    process_file(input_fpath, cpp_processed_fpath, is_left_turn);
+else
+    is_left_turn = true;
+    input_fname = 'CUDA_LeftTurn_frs.mat';
+    cpp_processed_output_fname = "cpp_processed_CUDA_LeftTurn_frs.frs.bin";
+    input_fpath = string(fullfile(input_dir, input_fname))
+    cpp_processed_fpath = string(fullfile(output_dir, cpp_processed_output_fname))
+    process_file(input_fpath, cpp_processed_fpath, is_left_turn)
+end
 
-% input_fname = 'CUDA_FRS_30-Aug-2022_lessFRS_3rnd_grid24_time_fixed.mat';
-% cpp_processed_output_fname = 'cpp_processed_CUDA_FRS_30-Aug-2022_lessFRS_3rnd_grid24_t_fix.DBG';
-
-is_left_turn = true;
-input_fname = 'CUDA_LeftTurn_frs.mat';
-cpp_processed_output_fname = "cpp_processed_CUDA_LeftTurn_frs.frs.bin";
-
-% input_fname = 'CUDA_FRS_Rover_30-Aug-2022_no_force.mat';
-% cpp_processed_output_fname = 'CUDA_FRS_Rover_30-Aug-2022_no_force_time_fix.DBG';
-
-
-%% Generate File Paths
-
-input_fpath = string(fullfile(input_dir, input_fname))
-cpp_processed_fpath = string(fullfile(output_dir, cpp_processed_output_fname))
+function process_file(input_fpath, cpp_processed_fpath, is_left_turn)
 %% Load Full FRS If it is not loaded
 % clear frs_full loaded_fpath
 if (~exist('loaded_fpath', 'var')) || (~exist('frs_full', 'var')) || any(loaded_fpath ~= input_fpath)
@@ -35,6 +32,7 @@ if (~exist('loaded_fpath', 'var')) || (~exist('frs_full', 'var')) || any(loaded_
     else
         frs_in = load(input_fpath);
         frs_in.LeftTurnFRS.manu_type = 3;
+        frs_in.LeftTurnFRS.cuda_FRS.manu_type = 3;
         loaded_fpath = input_fpath;
         lan_cells = cell(1, 1);
         lan_cells{1,1} = frs_in.LeftTurnFRS;
@@ -85,6 +83,7 @@ end
 tic
 MATLAB_PROCESS_FRS(frs_empty_removed, cpp_processed_fpath)
 toc
+end
 %% Helper Functions
 
 function manu_frses = fix_manu(manu_frses)

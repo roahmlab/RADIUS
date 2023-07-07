@@ -63,7 +63,6 @@ void FlZonoConstraint::EvaluateAt(const double val) {
     }
 
     constraint_evals_.at(i) = min_val;
-    // TODO should this be minus?
     gradient_evals_.at(i) = -a_full_.at(min_row) / slice_generator_val_;
   }
 }

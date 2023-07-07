@@ -10,11 +10,13 @@ function [cost,dcost] = highway_fmincon_cost_fun(K,agent_state,slice_idx,FRS,x_d
 
 % JL cost function
 idx = find(FRS.Z(slice_idx,2:end))+1;
+g_p = slice_cg(3,2);
+c_p = slice_cg(3,1);
 slice_cg = FRS.Z([1,2,slice_idx],[1,idx]);
-lambda = (K-slice_cg(3,1))/slice_cg(3,2);
+lambda = (K-c_p)/g_p;
 delta = slice_cg(1:2,1) + slice_cg(1:2,2)*lambda - x_des(1:2);
 cost = [1,50] * delta.^2; % JL
-dcost = 2*[1,50] * ( delta.*slice_cg(1:2,2)/slice_cg(3,2) );
+dcost = 2*[1,50] * ( delta.*slice_cg(1:2,2)/g_p);
 % beta_1 = 
 % dcost = 0;
 

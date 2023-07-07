@@ -2,10 +2,15 @@ function [T U Z] = parametrized_turnning_with_brake(p_u, p_y, symbolic_flag, t)
 % we assume we will start with a very small initial speed condition, thus we will keep accelerating during the first phase with amax no matter what
 
     load my_const.mat
+
+    % The speed parameter value should not be less than the critical speed,
+    % this most likely indicates an input error
+    assert(u_cri <= p_u);
+
     tm1 = tpk_dir/3;
     tm2 = 2;
     tm3 = tm1; % tm = tm1+tm2+tm3
-    tb1 = (p_u-u_cri)/amax;
+    tb1 = max([(p_u-u_cri)/amax, 0]);
     tb2 = 1;
     dt = 0.001;
     if symbolic_flag

@@ -257,6 +257,7 @@ classdef rlsimulator_crossroads < handle
                                 obs(i).outline.Shape.Vertices = temp.Vertices * rot' + [x_now, y_now];
                             end
                         else
+                            num_static_obstacle = S.W.num_cars - S.W.num_moving_cars - 1;
                             xmid = 0.5*( min(S.W.plot_data.obstacles_seen.XData(:,i+num_static_obstacle)) +  max(S.W.plot_data.obstacles_seen.XData(:,i+num_static_obstacle)) );
                             ymid = 0.5*( min(S.W.plot_data.obstacles_seen.YData(:,i+num_static_obstacle)) +  max(S.W.plot_data.obstacles_seen.YData(:,i+num_static_obstacle)) );
                             S.W.plot_data.obstacles_seen.XData(:,i+num_static_obstacle) =  S.W.plot_data.obstacles_seen.XData(:,i+num_static_obstacle) - xmid + x_now;
@@ -280,8 +281,8 @@ classdef rlsimulator_crossroads < handle
                     pause(0.01)
                 end
             end
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            S.wp_hist{end+1} = wp;
+
+            S.wp_hist{end+1} = wpt_takeover;
             agent_info = S.AH.get_agent_info() ;
             agent_info.replace_distance = replace_distance;
 
@@ -289,18 +290,16 @@ classdef rlsimulator_crossroads < handle
             Observation =[]; %S.W.get_ob(agent_info);
             Reward = 0;%S.W.getRew(agent_info,Observation);vx = v*cos(h)
 
-%             collision = S.W.collision_check(agent_info);
             if collision
                 warning("A collision Happened!");
             end
 
-            % JL modification for left turning. goal_check = 1 if feasible
+            % for left turning, goal_check = 1 if online planning is feasible
             if ~isempty(k)
                 goal_check = 1;
             else
                 goal_check = 0;
             end
-%             goal_check = S.W.goal_check(agent_info);
 
             
             IsDone = S.determine_isDone_flag(collision,action_replaced,stuck,goal_check);
@@ -308,19 +307,9 @@ classdef rlsimulator_crossroads < handle
 
             
             if S.eval &&( IsDone == 1 || IsDone == 3 ||IsDone == 4 || IsDone == 5) && S.save_result
-%                 Filename = sprintf('AfterSeed_sim_summary_IsDone_%s-SimIdx-%s-SceIdx-%s.mat', num2str(IsDone), num2str(S.W.simulation_idx), num2str(S.epscur));
-
-                Filename = sprintf('MultiPlanning_IsDone-%s_SimIdx-%s_SceIdx-%s_thre-%s.mat', num2str(IsDone), num2str(S.W.simulation_idx), num2str(S.epscur), num2str(S.threshold)); 
-
-                ref_Z = S.AH.ref_Z;
-                proposed_ref_Z = S.AH.proposed_ref_Z;
-                T= S.AH.T;
-                t_real_start_arr = S.AH.t_real_start;
-                t_proposed_start_arr = S.AH.t_proposed_start;
-                t_move =  S.AH.t_move;
-                plotting_param = S.AH.FRS_plotting_param;
+                Filename = sprintf('LeftTurning_IsDone-%s_SimIdx-%s_SceIdx-%s_thre-%s.mat', num2str(IsDone), num2str(S.W.simulation_idx), num2str(S.epscur), num2str(S.threshold)); 
                 envCars = S.W.envCars;
-                hist_info.K_hist = S.AH.K_hist;
+                hist_info.p_hist = S.AH.p_hist;
                 hist_info.FRS_hist = S.AH.FRS_hist;
                 hist_info.mirror_hist = S.AH.mirror_hist;
                 hist_info.type_manu_hist = S.AH.type_manu_hist;
@@ -328,10 +317,9 @@ classdef rlsimulator_crossroads < handle
                 hist_info.time_hist = S.AH.time_hist;
                 hist_info.wp_hist = S.wp_hist;
                 hist_info.solve_time_hist = S.AH.solve_time_hist;                
-%                 save(Filename,'hist_info','agent_info','world_info','ref_Z','proposed_ref_Z','plotting_param','T','t_move','t_real_start_arr','t_proposed_start_arr','envCars')
                 traj = S.AH.A.state;
                 traj_time = S.AH.A.time;
-                save(Filename,'envCars','traj','traj_time');
+                save(Filename,'envCars','traj','traj_time','hist_info');
             end
             
             drawnow;
@@ -362,7 +350,7 @@ classdef rlsimulator_crossroads < handle
             iniOb =[];
 
             if S.save_video
-                Videoname = sprintf('Leftturning_SimIdx-%s_SceIdx-%s_thre-%s', num2str(S.W.simulation_idx), num2str(S.epscur), num2str(S.threshold));
+                Videoname = sprintf('LeftTurning_SimIdx-%s_SceIdx-%s_thre-%s', num2str(S.W.simulation_idx), num2str(S.epscur), num2str(S.threshold));
                 S.videoObj = VideoWriter(Videoname,'Motion JPEG AVI');
                 S.videoObj.FrameRate = 1/(S.video_dt * S.video_dt_multiplier);
                 open(S.videoObj);
@@ -385,8 +373,6 @@ classdef rlsimulator_crossroads < handle
                     rightbound1 = 2*S.W.lanewidth -0.5*S.W.lanewidth + 0.7;
                     lowerbound1 = S.W.bounds(3) - 30 + 1.5*S.W.lanewidth;
                     upperbound1 = S.W.bounds(4) + 30 + 1.5*S.W.lanewidth;
-%                     -0.5*S.W.lanewidth'
-%                      'LineStyle','none'
 
                     %horizontally aligned road bounds
                     leftbound2 = S.W.bounds(1) - 30;

@@ -47,8 +47,6 @@ double GetGenParamAu(const ManuType& manu_type, double u0, double k_param) {
 }
 
 double GetGenParamAy(const ManuType& manu_type, double u0, double k_param) {
-  // TODO FIXME: is this wrong
-  // FIXME: is this wrong
   if (manu_type == ManuType::kSpdChange) {
     return 0.0;
   }

@@ -83,6 +83,8 @@ public:
   /// may cause numerical issues and explode the gradient/hessian.
   const double h_sqrt_epsilon_;
 
+  const bool use_left_cost_function_;
+
   /// @brief Constructor.
 
   WaypointCost(const WaypointLocalMirrorTakenIntoAccount& des_wp,
@@ -95,7 +97,8 @@ public:
                const double y_weight = 10.0, const double h_weight = 10.0,
                const double x_sqrt_epsilon = 1.0e-8,
                const double y_sqrt_epsilon = 1.0e-8,
-               const double h_sqrt_epsilon = 1.0e-8);
+               const double h_sqrt_epsilon = 1.0e-8,
+	       const bool use_left_cost_function = false);
 
   /// @brief Evaluates the cost at a given trajectory parameter
   /// @param param the trajectory parameter to evaluate the cost at. This value
@@ -116,8 +119,9 @@ inline static double GetLookupTimeSeconds(const ManuType manu_type) {
 
 inline static WaypointCost WaypointCostFromVehrsAndWp(
     const ::roahm::Vehrs& vehrs,
-    const WaypointLocalMirrorTakenIntoAccount& des_wp_modified) {
-  const auto time_ahead = GetLookupTimeSeconds(vehrs.GetManuType());
+    const WaypointLocalMirrorTakenIntoAccount& des_wp_modified,
+    const bool use_left_cost_function=false) {
+  const auto time_ahead = use_left_cost_function ? 4.00 : GetLookupTimeSeconds(vehrs.GetManuType());
   const auto zono_slice_xyh_cen_gen =
       vehrs.GetSliceableCenterAndGensNearstToTime(time_ahead);
   const auto zono_center_gen_traj_param = vehrs.GetCenterGenTrajParam();
@@ -129,7 +133,15 @@ inline static WaypointCost WaypointCostFromVehrsAndWp(
                                zono_slice_xyh_cen_gen.first.h_,
                                zono_slice_xyh_cen_gen.second.x_,
                                zono_slice_xyh_cen_gen.second.y_,
-                               zono_slice_xyh_cen_gen.second.h_};
+                               zono_slice_xyh_cen_gen.second.h_,
+3.0,  //   x_weight
+10.0,  //   y_weight
+10.0, //   h_weight
+1.0e-8, //   x_sqrt_epsilon
+1.0e-8, //   y_sqrt_epsilon
+1.0e-8, //   h_sqrt_epsilon
+use_left_cost_function //   use_left_cost_function
+  };
 }
 
 } // namespace roahm

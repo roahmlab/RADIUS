@@ -24,8 +24,8 @@ struct PointXYH {
   /// \param new_frame the local frame pose w.r.t. the world frame
   /// \return the input pose converted from the world frame to the local frame
   [[nodiscard]] PointXYH ToLocalFrame(const PointXYH& new_frame) const {
-    const double cos_h = std::cos(new_frame.h_);
-    const double sin_h = std::sin(new_frame.h_);
+    const double cos_h = std::cos(-new_frame.h_);
+    const double sin_h = std::sin(-new_frame.h_);
     const double trans_x = x_ - new_frame.x_;
     const double trans_y = y_ - new_frame.y_;
     const double trans_rot_x = cos_h * trans_x - sin_h * trans_y;

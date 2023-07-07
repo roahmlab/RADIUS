@@ -44,8 +44,6 @@ public:
                  const std::vector<std::vector<double>>& all_mu_sigmas,
                  const double u0_meters_per_second);
 
-  RiskConstraintValues EvaluateAt(double p_in) noexcept(false);
-
   /// @brief Evaluate the risk constraint, and its derivatives at a given point,
   /// with some maximum threshold
   /// @param p_in the trajectory parameter to evaluate the constraint at

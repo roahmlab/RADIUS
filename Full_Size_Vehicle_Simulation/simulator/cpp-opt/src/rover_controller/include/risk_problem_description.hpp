@@ -74,6 +74,7 @@ struct OptimizationInputs {
 
   bool use_fixed_risk_threshold_;
   double risk_threshold_;
+  bool use_left_cost_function_;
 
   /// @brief The number of risk constraints that will be present in the
   /// optimization problem.
@@ -107,8 +108,10 @@ inline static ::roahm::OptimizationInputs
 GetOptInputs(const ::roahm::FrsTotal& frs_total,
              const ::roahm::FrsSelectInfo& select_info,
              const ::roahm::RiskProblemDescription& base_inputs,
+	     const bool use_waypoint_modification_heuristic,
 	     const bool use_fixed_risk_threshold,
-	     const double risk_threshold) {
+	     const double risk_threshold,
+	     const bool use_left_cost_function) {
   const auto init_state = base_inputs.rover_state_;
   const double u0 = init_state.u_;
   const bool mirror = select_info.mirror_;
@@ -117,6 +120,7 @@ GetOptInputs(const ::roahm::FrsTotal& frs_total,
   ::roahm::OptimizationInputs ret;
   ret.use_fixed_risk_threshold_ = use_fixed_risk_threshold;
   ret.risk_threshold_ = risk_threshold;
+  ret.use_left_cost_function_ = use_left_cost_function;
   ret.u0_meters_per_second_ = u0;
 
   ret.waypoint_local_mirror_accounted_ =
@@ -124,9 +128,9 @@ GetOptInputs(const ::roahm::FrsTotal& frs_total,
           .RelativeToEgoFrameNoMirror(base_inputs.rover_state_.GetXYH())
           .TakeMirrorIntoAccount(mirror);
 
-  ret.waypoint_heuristic_adjusted_ =
+  ret.waypoint_heuristic_adjusted_ = use_waypoint_modification_heuristic ? 
       ret.waypoint_local_mirror_accounted_.HeuristicAdjust(vehrs.GetManuType(),
-                                                           u0);
+                                                           u0) : ret.waypoint_local_mirror_accounted_;
 
   for (const auto& always_risky_mu_sigma_multi :
        base_inputs.always_risky_obs_) {

@@ -1,6 +1,5 @@
 #include "vehrs.hpp"
 #include <algorithm>
-#include <fmt/format.h>
 
 #include <stdexcept>
 
@@ -12,7 +11,6 @@ namespace {
 ManuType
 CudaInfoManuTypeToManuType(const int cuda_info_manu_type) noexcept(false) {
   // TODO just move this into the loading phase
-  fmt::print("CudaInfoManuTypeToManuType: {}\n", cuda_info_manu_type);
   if (cuda_info_manu_type == 1) {
     return ManuType::kSpdChange;
   } else if (cuda_info_manu_type == 2) {
@@ -274,8 +272,6 @@ PointXYH Vehrs::LerpCenter(const double t) const {
   }()};
 
   const double t_center_next{zono_time_intervals_.at(t_next_idx).Midpoint()};
-  // fmt::print("t = {}, t_center_nearest = {}, t_center_next = {}, num = {},
-  // denom = {}\n", t, t_center_nearest, t_center_next, t - t_center_nearest);
   const double alpha{(t - t_center_nearest) /
                      (t_center_next - t_center_nearest)};
 
@@ -290,9 +286,6 @@ PointXYH Vehrs::LerpCenter(const double t) const {
   const double x_c{(alpha * x1) + ((1.0 - alpha) * x0)};
   const double y_c{(alpha * y1) + ((1.0 - alpha) * y0)};
   const double h_c{(alpha * h1) + ((1.0 - alpha) * h0)};
-  // fmt::print("Lerping betwen ({}, {}, t={}) and ({}, {}, t={}) -> ({}, {},
-  // alpha={})\n", x0, y0, t_center_nearest, x1, y1, t_center_next, x_c, y_c,
-  // alpha);
 
   return {x_c, y_c, h_c};
 }

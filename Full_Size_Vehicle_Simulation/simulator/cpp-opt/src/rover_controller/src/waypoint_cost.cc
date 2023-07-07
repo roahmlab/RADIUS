@@ -1,6 +1,7 @@
 #include "waypoint_cost.hpp"
 
 #include "waypoint.hpp"
+#include <fmt/core.h>
 
 namespace roahm {
 WaypointCost::WaypointCost(
@@ -10,7 +11,7 @@ WaypointCost::WaypointCost(
     const double sliceable_x_generator, const double sliceable_y_generator,
     const double sliceable_h_generator, const double x_weight,
     const double y_weight, const double h_weight, const double x_sqrt_epsilon,
-    const double y_sqrt_epsilon, const double h_sqrt_epsilon)
+    const double y_sqrt_epsilon, const double h_sqrt_epsilon, const bool use_left_cost_function)
     : des_wp_{des_wp}, sliceable_center_{sliceable_center},
       sliceable_generator_val_{sliceable_generator_val}, x_center_{x_center},
       y_center_{y_center}, h_center_{h_center},
@@ -18,7 +19,7 @@ WaypointCost::WaypointCost(
       sliceable_y_generator_{sliceable_y_generator},
       sliceable_h_generator_{sliceable_h_generator}, x_weight_{x_weight},
       y_weight_{y_weight}, h_weight_{h_weight}, x_sqrt_epsilon_{x_sqrt_epsilon},
-      y_sqrt_epsilon_{y_sqrt_epsilon}, h_sqrt_epsilon_{h_sqrt_epsilon} {}
+      y_sqrt_epsilon_{y_sqrt_epsilon}, h_sqrt_epsilon_{h_sqrt_epsilon}, use_left_cost_function_{use_left_cost_function} {}
 
 [[nodiscard]] double WaypointCost::GetLambda(const double param) const {
   return (param - sliceable_center_) / sliceable_generator_val_;
@@ -31,6 +32,30 @@ PointXYH WaypointCost::GetPointAt(const double param) const {
   return PointXYH{x_val, y_val, h_val};
 }
 WaypointCostRet WaypointCost::EvaluateAt(const double param) const {
+  if (use_left_cost_function_) {
+  const double lambda{GetLambda(param)};
+  const double A = des_wp_.x_ - x_center_;
+  const double B = sliceable_x_generator_;
+  const double C = des_wp_.y_ - y_center_;
+  const double D = sliceable_y_generator_;
+
+  // Compute error on each state
+  const double err_x = A - lambda * B;
+  const double err_y = C - lambda * D;
+
+  const double x_mult{1.0};
+  const double y_mult{50.0};
+  const double cost{(x_mult * err_x * err_x) + (y_mult * err_y * err_y)};
+  const double d_cost_x_unscaled{-2.0 * (sliceable_x_generator_ / sliceable_generator_val_) * err_x};
+  const double d_cost_y_unscaled{-2.0 * (sliceable_y_generator_ / sliceable_generator_val_) * err_y};
+  const double d_cost{x_mult * d_cost_x_unscaled + y_mult * d_cost_y_unscaled};
+  const double gen_ratio_x{sliceable_x_generator_ / sliceable_generator_val_};
+  const double gen_ratio_y{sliceable_y_generator_ / sliceable_generator_val_};
+  const double d2_cost{
+	  (x_mult * 2.0 * gen_ratio_x * gen_ratio_x) +
+          (y_mult * 2.0 * gen_ratio_y * gen_ratio_y)};
+  return {cost, d_cost, d2_cost};
+  }
   // Cost as a function of lamdba:
   //
   // C(lambda)

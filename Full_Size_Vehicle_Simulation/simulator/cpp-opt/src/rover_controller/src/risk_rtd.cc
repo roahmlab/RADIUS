@@ -10,7 +10,6 @@
 #include "frs_total.hpp"
 #include "ipopt_string_utils.hpp"
 #include "manu_type.hpp"
-#include "monte_carlo_ipopt.hpp"
 #include "risk_problem_description.hpp"
 #include "risk_rtd_ipopt_problem.hpp"
 #include "timing_util.hpp"

@@ -13,9 +13,7 @@
 #include "MatlabDataArray/ArrayFactory.hpp"
 #include "MatlabDataArray/TypedArray.hpp"
 #include "MatlabDataArray/detail/ArrayFactoryHelpers.hpp"
-#include "comparison_methods.hpp"
 #include "dyn_obs.hpp"
-#include "fl_zono_obs_plot.hpp"
 #include "fl_zono_obs_set.hpp"
 #include "frs_loader.hpp"
 #include "frs_select_info.hpp"
@@ -26,25 +24,13 @@
 #include "mex.hpp"
 #include "mexAdapter.hpp"
 #include "mu_sigma_multi.hpp"
-#include "plot_interface.hpp"
 #include "point_xyh.hpp"
 #include "risk_rtd.hpp"
 #include "risk_rtd_ipopt_problem.hpp"
 #include "ros/time.h"
 #include "rover_state.hpp"
 #include "timing_util.hpp"
-#include "vehrs_plot.hpp"
 #include "waypoint.hpp"
-
-namespace roahm::plot_utils {
-void SetupEngine(std::shared_ptr<matlab::engine::MATLABEngine> engine_ptr);
-void ClearAxes();
-// TODO REMOVE
-// std::optional<std::shared_ptr<matlab::engine::MATLABEngine>>
-// ConfigEngineReference(
-//     std::optional<std::shared_ptr<matlab::engine::MATLABEngine>> ref =
-//         std::nullopt);
-} // namespace roahm::plot_utils
 
 int64_t LoadIntFromArray(const matlab::data::Array& arr) {
   if (arr.getNumberOfElements() != 1) {
@@ -182,28 +168,25 @@ std::vector<roahm::MuSigmaMulti>
 ProcessAlwaysRiskyInput(const matlab::data::Array& arr) {
   if (arr.getType() != matlab::data::ArrayType::STRUCT) {
     throw std::runtime_error("Always risky obstacles do not have type STRUCT");
-  } else {
-    // TODO REMOVE
-    fmt::print("[DBG] arr has type struct\n");
   }
 
   constexpr int kNumExpectedDims = 2;
   const int num_dims = arr.getDimensions().size();
-  fmt::print("Number of dimension: {}\n", num_dims);
+  //fmt::print("Number of dimension: {}\n", num_dims);
   if (num_dims != kNumExpectedDims) {
     throw std::runtime_error(fmt::format("Expected {} dimensions but got {}",
                                          kNumExpectedDims, num_dims));
   }
 
   const int num_mu_sigma_sets = arr.getDimensions()[0];
-  fmt::print("Dim[0]: {}\n", num_mu_sigma_sets);
+  //fmt::print("Dim[0]: {}\n", num_mu_sigma_sets);
   if (num_mu_sigma_sets <= 0) {
     return {};
   }
 
   constexpr int kNumExpectedMuSigmaDurations = 16;
   const int num_mu_sigma_durations = arr.getDimensions()[1];
-  fmt::print("Dim[1]: {}\n", num_mu_sigma_durations);
+  //fmt::print("Dim[1]: {}\n", num_mu_sigma_durations);
   if (num_mu_sigma_durations != kNumExpectedMuSigmaDurations) {
     throw std::runtime_error(fmt::format("Expected {} cols but got {}",
                                          kNumExpectedMuSigmaDurations,
@@ -274,7 +257,6 @@ ProcessAlwaysRiskyInput(const matlab::data::Array& arr) {
     mu_sigma_multis.emplace_back(mu_sigma_data, dt_us);
   }
 
-  fmt::print("Return Size: {}\n", mu_sigma_multis.size());
   return mu_sigma_multis;
 }
 
@@ -313,7 +295,6 @@ ProcessAlwaysRiskyInput(const matlab::data::Array& arr) {
 
 std::vector<::roahm::MaybeRisky>
 ProcessChooseable(const matlab::data::Array& arr) {
-  fmt::print("Chooseable Arr Num Elts: {}\n", arr.getNumberOfElements());
   if (arr.isEmpty() or arr.getNumberOfElements() == 0) {
     return {};
   }
@@ -359,7 +340,6 @@ ProcessChooseable(const matlab::data::Array& arr) {
 
   std::vector<roahm::MaybeRisky> ret;
   ret.reserve(struct_arr.getNumberOfElements());
-  fmt::print("Struct Arr Num Elts: {}\n", struct_arr.getNumberOfElements());
   for (const auto& maybe_risky_mat_struct : struct_arr) {
     const auto& dyn_obs_portion = ProcessDynObs(
         maybe_risky_mat_struct[std::string{kMaybeRiskyDynObsFieldName}],
@@ -380,7 +360,6 @@ ProcessChooseable(const matlab::data::Array& arr) {
     }
     ret.emplace_back(dyn_obs_portion.GetSingleDynObs(0), risk_portion.at(0));
   }
-  fmt::print("Ret Num Chooseable: {}\n", ret.size());
   return ret;
 }
 
@@ -417,12 +396,26 @@ inline std::string ValidateAndLoadSingleString(matlab::mex::ArgumentList& args,
   const matlab::data::StringArray ai = args[idx];
   return std::string(args[idx][0]);
 }
+inline bool IsArgumentBoolMat(matlab::mex::ArgumentList& args,
+                                const int idx) {
+  return (args.size() > idx) and
+         (args[idx].getType() == matlab::data::ArrayType::LOGICAL);
+}
 inline bool IsArgumentDoubleMat(matlab::mex::ArgumentList& args,
                                 const int idx) {
   return (args.size() > idx) and
          (args[idx].getType() == matlab::data::ArrayType::DOUBLE);
 }
 
+inline void ValidateArgumentIsBoolMat(matlab::mex::ArgumentList& args,
+                                        const int idx) {
+  ValidateArgumentSizeOfAtLeast(args, idx);
+  if (not IsArgumentBoolMat(args, idx)) {
+    throw std::runtime_error(
+        "Expected matrix of bools for argument at index " +
+        std::to_string(idx));
+  }
+}
 inline void ValidateArgumentIsDoubleMat(matlab::mex::ArgumentList& args,
                                         const int idx) {
   ValidateArgumentSizeOfAtLeast(args, idx);
@@ -431,6 +424,13 @@ inline void ValidateArgumentIsDoubleMat(matlab::mex::ArgumentList& args,
         "Expected matrix of doubles for argument at index " +
         std::to_string(idx));
   }
+}
+inline bool BoolMatHasSize(matlab::mex::ArgumentList& args, const int idx,
+                             const int rows, const int cols) {
+  return IsArgumentBoolMat(args, idx) and
+         (args[idx].getDimensions().size() == 2) and
+         (args[idx].getDimensions()[0] == rows) and
+         (args[idx].getDimensions()[1] == cols);
 }
 inline bool DoubleMatHasSize(matlab::mex::ArgumentList& args, const int idx,
                              const int rows, const int cols) {
@@ -459,10 +459,33 @@ void ValidateArgumentIsDoubleMatWithSize(matlab::mex::ArgumentList& args,
         std::to_string(args[idx].getDimensions()[1]) + "] instead");
   }
 }
+void ValidateArgumentIsBoolMatWithSize(matlab::mex::ArgumentList& args,
+                                         const int idx, const int rows,
+                                         const int cols) {
+  ValidateArgumentSizeOfAtLeast(args, idx);
+  ValidateArgumentIsBoolMat(args, idx);
+  if (not BoolMatHasSize(args, idx, rows, cols)) {
+    if (args[idx].getDimensions().size() != 2) {
+      throw std::runtime_error(
+          "Expected 2 dimensions, but got " +
+          std::to_string(args[idx].getDimensions().size()));
+    }
+    throw std::runtime_error(
+        "Expected [" + std::to_string(rows) + " x " + std::to_string(cols) +
+        "] bool matrix but got [" +
+        std::to_string(args[idx].getDimensions()[0]) + " x " +
+        std::to_string(args[idx].getDimensions()[1]) + "] instead");
+  }
+}
 inline double ValidateAndLoadArgumentSingleDoubleValue(
     matlab::mex::ArgumentList& args, const int idx) {
   ValidateArgumentIsDoubleMatWithSize(args, idx, 1, 1);
   return double{args[idx][0][0]};
+}
+inline bool ValidateAndLoadArgumentSingleBoolValue(
+    matlab::mex::ArgumentList& args, const int idx) {
+  ValidateArgumentIsBoolMatWithSize(args, idx, 1, 1);
+  return bool{args[idx][0][0]};
 }
 
 ::roahm::RiskProblemDescription
@@ -477,7 +500,7 @@ ValidateAndLoadInputs(matlab::mex::ArgumentList& outputs,
 
   // Expected Outputs:
   // 1. Array TODO
-  constexpr int kNumExpectedInputs = 7;
+  constexpr int kNumExpectedInputs = 11;
   constexpr int kNumExpectedOutputs = 1;
 
   constexpr int kStateVarInputNum = 0;
@@ -508,23 +531,15 @@ ValidateAndLoadInputs(matlab::mex::ArgumentList& outputs,
   }
 
   ::roahm::RiskProblemDescription ret{};
-  fmt::print("Loading Rover State...\n");
   ret.rover_state_ = LoadRoverStateFromMatlab(inputs[kStateVarInputNum]);
-  fmt::print("Loading Waypoint...\n");
   ret.waypoint_global_no_mirror_ =
       LoadWaypointFromMatlab(inputs[kWaypointInputNum]);
-  fmt::print("Loading Always Risky...\n");
   ret.always_risky_obs_ =
       ProcessAlwaysRiskyInput(inputs[kAlwaysRiskyObsInputNum]);
-  fmt::print("Loading Always Non Risky...\n");
   ret.always_non_risky_obs_ =
       ProcessDynObs(inputs[kAlwaysNonRiskyObsInputNum],
                     roahm::DynObs::ObstacleType::kStaticBoundary);
-  fmt::print("Loaded {} Always Non Risky\n",
-             ret.always_non_risky_obs_.GetNumObs());
-  fmt::print("Loading Maybe Risky...\n");
   ret.maybe_risky_obs_ = ProcessChooseable(inputs[kChooseableObsInputNum]);
-  fmt::print("Returning...\n");
   return ret;
 }
 
@@ -534,156 +549,50 @@ private:
   ::roahm::RiskRtd risk_rtd_;
 
 public:
-  MexFunction() : last_frs_fpath_{"/data/cpp_processed_CUDA_FRS_30-Aug-2022_lessFRS_3rnd_grid24_t_fix.DBG"}, risk_rtd_{last_frs_fpath_} {}
+  MexFunction() : last_frs_fpath_{"/data/cpp_processed_CUDA_Highway_frs.frs.bin"}, risk_rtd_{last_frs_fpath_} {}
   void operator()(matlab::mex::ArgumentList outputs,
                   matlab::mex::ArgumentList inputs) {
     using ::roahm::GetDeltaS;
     using ::roahm::Tick;
     try {
-      constexpr bool kPlotThings{false};
       matlab::data::ArrayFactory factory;
       matlab::data::TypedArray<double> arr_out =
           factory.createArray<double>({8});
 
-      fmt::print("[RRM] Getting Engine\n");
-      std::shared_ptr<matlab::engine::MATLABEngine> engine_ptr = getEngine();
-      // Setup if we want to do any plotting
-      if (kPlotThings) {
-        roahm::plot_utils::SetupEngine(engine_ptr);
-      }
-
-      fmt::print("[RRM] Getting Inputs\n");
       auto risk_inputs{ValidateAndLoadInputs(outputs, inputs)};
       const std::string new_frs_fpath{ValidateAndLoadSingleString(inputs, 5)};
       const double risk_threshold{ValidateAndLoadArgumentSingleDoubleValue(inputs, 6)};
-      fmt::print("[LOADED RISK THRESHOLD] {}\n", risk_threshold);
+      const bool check_mirrors{ValidateAndLoadArgumentSingleBoolValue(inputs, 7)};
+      const bool use_waypoint_modification_heuristic{ValidateAndLoadArgumentSingleBoolValue(inputs, 8)};
+      const bool use_selection_heuristic{ValidateAndLoadArgumentSingleBoolValue(inputs, 9)};
+      const bool use_left_cost_function{ValidateAndLoadArgumentSingleBoolValue(inputs, 10)};
+      //fmt::print("[LOADED RISK THRESHOLD] {}\n", risk_threshold);
       if (new_frs_fpath != last_frs_fpath_) {
-        fmt::print("[SETTING NEW FRS FPATH] {}\n", new_frs_fpath);
+        //fmt::print("[SETTING NEW FRS FPATH] {}\n", new_frs_fpath);
 	last_frs_fpath_ = new_frs_fpath;
-        fmt::print("[LOADING FRS @ FPATH] {}\n", new_frs_fpath);
+        //fmt::print("[LOADING FRS @ FPATH] {}\n", new_frs_fpath);
 	risk_rtd_ = ::roahm::RiskRtd{last_frs_fpath_};
-        fmt::print("[LOADED FRS @ FPATH] {}\n", new_frs_fpath);
+        //fmt::print("[LOADED FRS @ FPATH] {}\n", new_frs_fpath);
       }
-      fmt::print("State: {} {}\n", risk_inputs.rover_state_.x_,
-                 risk_inputs.rover_state_.y_);
-      fmt::print("[RRM] Getting Outputs\n");
       // fmt::print("[MEX] Ran Planning Iteration\n");
       // fmt::print("[MEX] RISK RTD Took: {}\n",
       // risk_outputs.total_time_seconds_);
 
-      fmt::print("[RRM] Configuring Slicing\n");
-      const ::roahm::plot_utils::PlotInfo plot_info_sliced{
-          ::roahm::plot_utils::PlotColor{0.01, 0.0, 1.0, 0.0}, 0.5, false,
-          ::roahm::plot_utils::PlotLineType::Continuous()};
-      fmt::print("[RRM] Loading FRS\n");
+      //fmt::print("[RRM] Loading FRS\n");
       const auto frs_full{roahm::LoadFrsBinary(last_frs_fpath_)};
-      //const auto frs_full{roahm::LoadFrsBinary(
-      //    "/data/"
-      //    "cpp_processed_CUDA_FRS_30-Aug-2022_lessFRS_3rnd_grid24_t_fix.DBG")};
-      fmt::print("[RRM] Loaded FRS\n");
-      // roahm::plot_impls::PlotFlZonoObsSet(risk_inputs.always_non_risky_obs_);
-      fmt::print("Num Non Risky:   {}\n",
-                 risk_inputs.always_non_risky_obs_.GetNumObs());
-      fmt::print("Num Risky:       {}\n", risk_inputs.always_risky_obs_.size());
-      fmt::print("Num Maybe Risky: {}\n", risk_inputs.maybe_risky_obs_.size());
-      roahm::plot_utils::PlotInfo plot_info{
-          roahm::plot_utils::PlotColor{0.0, 0.0, 0.0, 0.0}, 1, true,
-          roahm::plot_utils::PlotLineType::Continuous(), std::nullopt};
-      if (kPlotThings) {
-        // roahm::PlotVehrs(frs_full.megas_.at(0).dir_.at(0).at(0),
-        //                  risk_inputs.rover_state_.GetXYH(), false,
-        //                  plot_info_sliced);
+      //fmt::print("[RRM] Loaded FRS\n");
+      // fmt::print("Num Non Risky:   {}\n",
+      //            risk_inputs.always_non_risky_obs_.GetNumObs());
+      // fmt::print("Num Risky:       {}\n", risk_inputs.always_risky_obs_.size());
+      // fmt::print("Num Maybe Risky: {}\n", risk_inputs.maybe_risky_obs_.size());
 
-        // roahm::plot_utils::TurnHoldOn();
-        roahm::plot_utils::OpenFigure(34);
-        roahm::plot_utils::ClearAxes();
-        // roahm::plot_utils::TurnHoldOn();
-        // roahm::plot_utils::OpenFigure(13);
-        roahm::plot_utils::TurnHoldOn();
-        roahm::plot_impls::PlotPointXYH(risk_inputs.rover_state_.GetXYH(), 4.0,
-                                        1.0, plot_info);
-        roahm::plot_impls::PlotPointXYH(risk_inputs.waypoint_global_no_mirror_,
-                                        4.0, 1.0, plot_info);
-        for (const auto& maybe_obs : risk_inputs.maybe_risky_obs_) {
-          roahm::plot_utils::TurnHoldOn();
-          roahm::plot_impls::PlotFlZonoObs(maybe_obs.dyn_obs_);
-        }
-        roahm::plot_utils::SetAxisEqual();
-      }
-
-      fmt::print("[RMM] Pre Planning ITER\n");
+      // fmt::print("[RMM] Pre Planning ITER\n");
       const auto t0 = Tick();
       std::vector<roahm::RiskRtdPlanningOutputsIpopt> risk_outputs_original;
-      // CHALLEN_NOTE abl_meth is 1-indexed to the list of methods 
-      // you posted on Slack.
-      const int abl_meth = -1;
-      if (abl_meth == 1) {
-        const std::uint32_t randomization_seed{0};
-        const ::roahm::TimeMicroseconds dt{
-            ::roahm::TimeMicroseconds::Get10ms()};
-        //const double risk_threshold{0.05};
-        const std::int64_t num_trajectory_samples{1000};
-        const roahm::risk_comparisons::EnvFootprints footprints{
-            roahm::risk_comparisons::EnvFootprints::Default()};
-        const int num_param_samples{1};
-        fmt::print("ABL_METH: 1\n");
-        const auto sampled_outputs =
-            roahm::risk_comparisons::MonteCarloDiscreteSampling27(
-                frs_full, risk_inputs, randomization_seed,
-                num_trajectory_samples, dt, footprints, risk_threshold, num_param_samples);
-        fmt::print("OUT: {}\n",
-                   sampled_outputs.at(0).final_cost_.value_or(-1.00));
-        std::vector<roahm::RiskRtdPlanningOutputsIpopt> fake_ipopt;
-        for (const auto& samp_out : sampled_outputs) {
-          roahm::RiskRtdPlanningOutputsIpopt nsamp{
-              samp_out, Ipopt::ApplicationReturnStatus::Internal_Error,
-              std::nullopt};
-          fake_ipopt.push_back(nsamp);
-        }
-        risk_outputs_original = fake_ipopt;
-      } else if (abl_meth == 3) {
-        const std::uint32_t randomization_seed{0};
-        const ::roahm::TimeMicroseconds dt{
-            ::roahm::TimeMicroseconds::Get10ms()};
-        //const double risk_threshold{0.05};
-        const std::int64_t num_trajectory_samples{1000};
-        const roahm::risk_comparisons::EnvFootprints footprints{
-            roahm::risk_comparisons::EnvFootprints::Default()};
-        const auto sampled_outputs =
-            roahm::risk_comparisons::MonteCarloDiscreteSamplingOptE(
-                frs_full, risk_inputs, randomization_seed,
-                num_trajectory_samples, dt, footprints, risk_threshold);
-        fmt::print("OUT: {}\n",
-                   sampled_outputs.at(0).final_cost_.value_or(-1.00));
-        std::vector<roahm::RiskRtdPlanningOutputsIpopt> fake_ipopt;
-        for (const auto& samp_out : sampled_outputs) {
-          roahm::RiskRtdPlanningOutputsIpopt nsamp{
-              samp_out, Ipopt::ApplicationReturnStatus::Internal_Error,
-              std::nullopt};
-          fake_ipopt.push_back(nsamp);
-        }
-        risk_outputs_original = fake_ipopt;
-      } else if (abl_meth == 2) {
-        risk_outputs_original = risk_rtd_.RunPlanningIteration<::roahm::monte_carlo_27_ipopt::MonteCarlo27IpoptProblem>(risk_inputs, true, risk_threshold);
-      } else if (abl_meth == 4) {
-      risk_outputs_original = risk_rtd_.RunPlanningIteration<::roahm::monte_carlo_ipopt::MonteCarloIpoptProblem>(risk_inputs, true, risk_threshold);
-      } else {
-        risk_outputs_original = risk_rtd_.RunPlanningIteration<::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem>(risk_inputs, true, risk_threshold);
-      }
+      risk_outputs_original = risk_rtd_.RunPlanningIteration<::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem>(risk_inputs, true, risk_threshold, check_mirrors, use_waypoint_modification_heuristic, use_left_cost_function);
       auto risk_outputs = risk_outputs_original;
       const auto t1 = Tick();
 
-      // std::vector<roahm::plot_utils::PlotColor> color_its{
-      //     roahm::plot_utils::PlotColor{0.5, 0.0, 0.0, 0.0},
-      //     roahm::plot_utils::PlotColor{0.5, 1.0, 0.0, 0.0},
-      //     roahm::plot_utils::PlotColor{0.5, 0.0, 1.0, 0.0},
-      //     roahm::plot_utils::PlotColor{0.5, 0.0, 0.0, 1.0},
-      //     roahm::plot_utils::PlotColor{0.5, 1.0, 1.0, 0.0},
-      //     roahm::plot_utils::PlotColor{0.5, 0.0, 1.0, 1.0},
-      //     roahm::plot_utils::PlotColor{0.5, 1.0, 0.0, 1.0},
-      // };
-
-      fmt::print("[RRM] Loading FRS\n");
       const double delta_y_wp{risk_inputs.waypoint_global_no_mirror_.y_ -
                               risk_inputs.rover_state_.y_};
       const bool is_waypoint_in_same_lane{std::abs(delta_y_wp) <= 0.1};
@@ -691,131 +600,59 @@ public:
         int color_idx{0};
         int idx{0};
         int success_count{0};
-        fmt::print("[RRM] Iterating\n");
+        // fmt::print("[RRM] Iterating\n");
         for (const auto& full_opt_inf : risk_outputs) {
           ++idx;
           success_count += full_opt_inf.found_feasible_;
-          // const ::roahm::plot_utils::PlotInfo failed_plot_info{
-          //     ::roahm::plot_utils::PlotColor{0.5, 1.0, 0.0, 0.0}, 0.05,
-          //     false,
-          //     ::roahm::plot_utils::PlotLineType::Continuous(), std::nullopt};
-          // const ::roahm::plot_utils::PlotInfo success_plot_info{
-          //     ::roahm::plot_utils::PlotColor{0.5, 0.0, 1.0, 0.0}, 0.05,
-          //     false,
-          //     ::roahm::plot_utils::PlotLineType::Continuous(), std::nullopt};
-          // auto plot_info = full_opt_inf.found_feasible_ ? success_plot_info
-          //                                               : failed_plot_info;
           const auto& curr_frs = frs_full.GetVehrs(full_opt_inf.sel_inf_);
           if (true or (not full_opt_inf.found_feasible_)) {
-            fmt::print(R"""([ RES ] Problem {} / {} (1-idx)
-  Mirror:        {}
-  ManuType:      {}
-  Feasible:      {}
-  Solve Success: {}  
-  Status:        {}
-  Param:         {} in [{}, {}]
-  Cost:          {}
-  Solver Status: {}
-)""",
-                       idx, risk_outputs.size(), full_opt_inf.sel_inf_.mirror_,
-                       ToString(full_opt_inf.sel_inf_.manu_type_),
-                       full_opt_inf.found_feasible_,
-                       full_opt_inf.solve_succeeded_,
-                       ::roahm::ToString(full_opt_inf.ipopt_status_),
-                       ::roahm::StdToStringOpt(full_opt_inf.final_param_),
-                       curr_frs.GetTrajParamMin(), curr_frs.GetTrajParamMax(),
-                       ::roahm::StdToStringOpt(full_opt_inf.final_cost_),
-                       ::roahm::ToStringOpt<Ipopt::SolverReturn>(
-                           full_opt_inf.final_solver_status_));
+//            fmt::print(R"""([ RES ] Problem {} / {} (1-idx)
+//  Mirror:        {}
+//  ManuType:      {}
+//  Feasible:      {}
+//  Solve Success: {}  
+//  Status:        {}
+//  Param:         {} in [{}, {}]
+//  Cost:          {}
+//  Solver Status: {}
+//)""",
+//                       idx, risk_outputs.size(), full_opt_inf.sel_inf_.mirror_,
+//                       ToString(full_opt_inf.sel_inf_.manu_type_),
+//                       full_opt_inf.found_feasible_,
+//                       full_opt_inf.solve_succeeded_,
+//                       ::roahm::ToString(full_opt_inf.ipopt_status_),
+//                       ::roahm::StdToStringOpt(full_opt_inf.final_param_),
+//                       curr_frs.GetTrajParamMin(), curr_frs.GetTrajParamMax(),
+//                       ::roahm::StdToStringOpt(full_opt_inf.final_cost_),
+//                       ::roahm::ToStringOpt<Ipopt::SolverReturn>(
+//                           full_opt_inf.final_solver_status_));
 
-            fmt::print("Center val: {}\n", curr_frs.GetCenterK());
-            fmt::print("Idx: {} Color {}\n", idx, color_idx);
-            // const auto new_color =
-            //     color_its.at((++color_idx) % color_its.size());
-            //  plot_info.color_ = new_color;
-            if (full_opt_inf.found_feasible_) {
-              plot_info.color_ = {0.5, 0.0, 1.0, 0.0};
-            } else {
-              plot_info.color_ = {0.3, 1.0, 0.0, 0.0};
-            }
             const double param_val_unmirrored =
                 full_opt_inf.final_param_.value_or(curr_frs.GetTrajParamMin());
-            if (kPlotThings and IsSpd(curr_frs.GetManuType()) and
-                not full_opt_inf.found_feasible_ and
-                not full_opt_inf.sel_inf_.mirror_) {
-              fmt::print("Is Spd\n");
-              // PlotVehrs(
-              //     curr_frs.SliceAtParam(risk_inputs.rover_state_.u_,
-              //                           risk_inputs.rover_state_.v_,
-              //                           risk_inputs.rover_state_.r_,
-              //                           full_opt_inf.final_param_.value_or(
-              //                               curr_frs.GetTrajParamMin())),
-              //     risk_inputs.rover_state_.GetXYH(),
-              //     full_opt_inf.sel_inf_.mirror_, plot_info);
-              ::roahm::plot_utils::TurnHoldOn();
-              // PlotVehrs(
-              //     curr_frs.SliceAtParam(risk_inputs.rover_state_.u_,
-              //                           risk_inputs.rover_state_.v_,
-              //                           risk_inputs.rover_state_.r_,
-              //                           full_opt_inf.final_param_.value_or(
-              //                               curr_frs.GetTrajParamMax())),
-              //     risk_inputs.rover_state_.GetXYH(),
-              //     full_opt_inf.sel_inf_.mirror_, plot_info);
-              PlotVehrs(
-                  curr_frs.SliceAtParam(risk_inputs.rover_state_.u_,
-                                        risk_inputs.rover_state_.v_,
-                                        risk_inputs.rover_state_.r_,
-                                        full_opt_inf.final_param_.value_or(
-                                            curr_frs.GetCenterK())),
-                  risk_inputs.rover_state_.GetXYH(),
-                  full_opt_inf.sel_inf_.mirror_, plot_info);
-            }
           }
         }
         fmt::print("{} successful / {}\n", success_count, risk_outputs.size());
-        fmt::print("waypoint_in_same_lane: {}\n", is_waypoint_in_same_lane);
-        fmt::print("global waypoint: {} {} {}\n",
-                   risk_inputs.waypoint_global_no_mirror_.x_,
-                   risk_inputs.waypoint_global_no_mirror_.y_,
-                   risk_inputs.waypoint_global_no_mirror_.h_);
+        // fmt::print("waypoint_in_same_lane: {}\n", is_waypoint_in_same_lane);
+        // fmt::print("global waypoint: {} {} {}\n",
+        //            risk_inputs.waypoint_global_no_mirror_.x_,
+        //            risk_inputs.waypoint_global_no_mirror_.y_,
+        //            risk_inputs.waypoint_global_no_mirror_.h_);
         const auto local_tmp =
             risk_inputs.waypoint_global_no_mirror_.RelativeToEgoFrameNoMirror(
                 risk_inputs.rover_state_.GetXYH());
-        fmt::print("local tmp: {} {} {}\n", local_tmp.x_, local_tmp.y_,
-                   local_tmp.h_);
-        fmt::print("start point: {} {} {}\n", risk_inputs.rover_state_.x_,
-                   risk_inputs.rover_state_.y_,
-                   risk_inputs.rover_state_.GetHeading());
 
         if (success_count > 0) {
-          fmt::print("Success count > 0\n");
           // Found feasible
           const double u0{risk_inputs.rover_state_.u_};
           const double h0{risk_inputs.rover_state_.GetHeading()};
           const auto rtd_out_comparison_operator =
-              [u0, h0, delta_y_wp, is_waypoint_in_same_lane](
+              [u0, h0, delta_y_wp, is_waypoint_in_same_lane, use_selection_heuristic](
                   const ::roahm::RiskRtdPlanningOutputs& p0,
                   const ::roahm::RiskRtdPlanningOutputs& p1) -> bool {
             // p0 < p1  ===>  p0 has higher priority
-            // (true)
             constexpr bool kPrioritizeP0{true};
             constexpr bool kPrioritizeP1{false};
             static_assert(kPrioritizeP0 != kPrioritizeP1);
-
-            /*
-            if (p0.found_feasible_ and (not p1.found_feasible_)) {
-              return kPrioritizeP0;
-            } else if (p1.found_feasible_ and (not p0.found_feasible_)) {
-              return kPrioritizeP1;
-            } else if ((not p0.found_feasible_) and (not p1.found_feasible_)) {
-              // TODO is this a total ordering?
-              const bool idx_tiebreaker =
-                  (p0.sel_inf_.idxu0_ < p1.sel_inf_.idxu0_) or
-                  (p0.sel_inf_.idx0_ < p1.sel_inf_.idx0_) or
-                  (p0.sel_inf_.idx1_ < p1.sel_inf_.idx1_);
-              return idx_tiebreaker;
-            }
-            */
 
             {
               const bool p0_has_param{p0.final_param_.has_value()};
@@ -838,6 +675,14 @@ public:
             const double p1_final_param{p1.final_param_.value()};
             const double p0_cost{p0.final_cost_.value()};
             const double p1_cost{p1.final_cost_.value()};
+
+            if (not use_selection_heuristic) {
+              if (p0_cost <= p1_cost) {
+                return kPrioritizeP0;
+              }
+              return kPrioritizeP1;
+            }
+
             const ::roahm::PointXYH p0_location_local{
                 p0.final_location_.value()};
             const ::roahm::PointXYH p1_location_local{
@@ -846,14 +691,10 @@ public:
             const double p1_mirror_mult{p1.sel_inf_.mirror_ ? -1.0 : 1.0};
             const double p0_delta_y{p0_location_local.y_ * p0_mirror_mult};
             const double p1_delta_y{p1_location_local.y_ * p1_mirror_mult};
-            // const double p0_abs_delta_y{std::abs(p0_dy)};
-            // const double p1_abs_delta_y{std::abs(p1_dy)};
             const double p0_signed_dist_to_wp_y{delta_y_wp - p0_delta_y};
             const double p1_signed_dist_to_wp_y{delta_y_wp - p1_delta_y};
             const double p0_abs_dist_to_wp_y{std::abs(p0_signed_dist_to_wp_y)};
             const double p1_abs_dist_to_wp_y{std::abs(p1_signed_dist_to_wp_y)};
-
-            // TODO check heading
 
             constexpr bool kIsRover{true};
             constexpr double kWantToSpeedUpThresholdRover{0.0};
@@ -953,59 +794,6 @@ public:
               return kPrioritizeP0;
             }
             return kPrioritizeP1;
-
-            // Prioritize Lane Changes
-            // const bool is_p0_more_sketchy = (p0_in_sketchy_lane and (not
-            // p1_in_sketchy_lane)); const bool is_p1_more_sketchy =
-            // (p1_in_sketchy_lane and (not p0_in_sketchy_lane));
-            /*
-            const bool is_p0_significant_lan{
-                is_p0_lan and
-                (std::abs(p0_final_param) >= kSignificantLaneChangeMinAbs)};
-            const bool is_p1_significant_lan{
-                is_p1_lan and
-                (std::abs(p1_final_param) >= kSignificantLaneChangeMinAbs)};
-
-            if (not is_waypoint_in_same_lane) {
-              if (is_p0_significant_lan and (not is_p1_significant_lan)) {
-                return kPrioritizeP0;
-              } else if (is_p1_significant_lan and
-                         (not is_p0_significant_lan)) {
-                return kPrioritizeP1;
-              } else if (is_p0_lan and (not is_p1_lan)) {
-                return kPrioritizeP0;
-              } else if (is_p1_lan and (not is_p0_lan)) {
-                return kPrioritizeP1;
-              }
-            }
-            */
-
-            // Try not to actively slow down, in general
-            /*
-            if (is_p1_slow_down and (not is_p0_slow_down)) {
-              return kPrioritizeP0;
-            } else if (is_p0_slow_down and (not is_p1_slow_down)) {
-              return kPrioritizeP1;
-            }
-            */
-
-            /*
-            if (is_p0_lan and (not is_p1_lan)) {
-              return kPrioritizeP0;
-            } else if (is_p1_lan and (not is_p0_lan)) {
-              return kPrioritizeP1;
-            }
-            */
-
-            /*
-            if (is_p1_dir and (not is_p0_dir)) {
-              return kPrioritizeP0;
-            } else {
-              return kPrioritizeP1;
-            }
-
-            return p0_cost < p1_cost;
-            */
           };
 
           for (int i = 0; i < risk_outputs.size(); ++i) {
@@ -1022,48 +810,20 @@ public:
                       rtd_out_comparison_operator);
           }
 
-          for (int i = 0; i < risk_outputs.size(); ++i) {
-            const auto& p0 = risk_outputs.at(i);
-            fmt::print(
-                "[{}]\n Type: {}\n P: {} of [{}, {}]\n WPLMY: {}\n FLY: {}\n",
-                i, ToString(p0.sel_inf_.manu_type_), p0.final_param_.value(),
-                frs_full.GetVehrs(p0.sel_inf_).GetTrajParamMin(),
-                frs_full.GetVehrs(p0.sel_inf_).GetTrajParamMax(),
-                p0.waypoint_local_frame_.y_, p0.final_location_.value().y_);
-          }
+	  // Enable for debugging
+          // for (int i = 0; i < risk_outputs.size(); ++i) {
+          //   const auto& p0 = risk_outputs.at(i);
+          //   fmt::print(
+          //       "[{}]\n Type: {}\n P: {} of [{}, {}]\n WPLMY: {}\n FLY: {}\n",
+          //       i, ToString(p0.sel_inf_.manu_type_), p0.final_param_.value(),
+          //       frs_full.GetVehrs(p0.sel_inf_).GetTrajParamMin(),
+          //       frs_full.GetVehrs(p0.sel_inf_).GetTrajParamMax(),
+          //       p0.waypoint_local_frame_.y_, p0.final_location_.value().y_);
+          // }
           if (not risk_outputs.front().found_feasible_) {
             throw std::runtime_error(
                 "Sorted, success count > 0, but front doesn't have feasible?");
           }
-          fmt::print("Constructed\n");
-          /*
-          for (int i = 0; i < risk_outputs.size(); ++i) {
-            const auto& curr_out = risk_outputs.at(i);
-            if (curr_out.found_feasible_) {
-              if (curr_out.final_cost_.has_value()) {
-                constexpr double kInf = std::numeric_limits<double>::infinity();
-                const double curr_cost = curr_out.final_cost_.value();
-                const bool have_prev_min = not(min_cost.has_value());
-                const bool curr_lower_cost =
-                    (curr_cost < min_cost.value_or(kInf));
-                const bool curr_is_lan =
-                    curr_out.sel_inf_.manu_type_ == roahm::ManuType::kLanChange;
-                const bool prev_is_lan =
-                    min_manu_type.value_or(::roahm::ManuType::kNone) ==
-                    ::roahm::ManuType::kLanChange;
-                if (have_prev_min or curr_lower_cost or
-                    (curr_is_lan and (not prev_is_lan))) {
-                  min_cost = curr_cost;
-                  min_param_no_mirror = curr_out.final_param_;
-                  min_manu_type = curr_out.sel_inf_.manu_type_;
-                  min_mirror = curr_out.sel_inf_.mirror_;
-                  min_u0 = curr_out.u0_;
-                  min_sel_info = curr_out.sel_inf_;
-                }
-              }
-            }
-          }
-          */
 
           const auto& min_elt = risk_outputs.front();
           std::optional<double> min_cost = min_elt.final_cost_;
@@ -1081,14 +841,12 @@ public:
           } else if (min_manu_type == ::roahm::ManuType::kLanChange) {
             min_manu_type_int = 3;
           }
-          fmt::print("Checkpoint 00\n");
           constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
           arr_out[0] = true;
           arr_out[1] = min_param_no_mirror.value_or(kNaN);
           arr_out[2] = min_mirror;
           arr_out[3] = min_manu_type_int;
           arr_out[4] = min_u0.value_or(kNaN);
-          fmt::print("Checkpoint 01\n");
           if (not min_sel_info.has_value()) {
             throw std::runtime_error("No sel info on final value");
           }
@@ -1105,22 +863,19 @@ public:
             const auto sliced_vehrs{got_vehrs.SliceAtParam(
                 risk_inputs.rover_state_.u_, risk_inputs.rover_state_.v_,
                 risk_inputs.rover_state_.r_, min_param_no_mirror_val)};
-            if (kPlotThings) {
-              roahm::PlotVehrs(sliced_vehrs, state_xyh, min_mirror,
-                               std::nullopt);
-            }
           }
           if (::roahm::IsSpd(
                   min_manu_type.value_or(::roahm::ManuType::kNone))) {
-            fmt::print("[RRM] Got Outputs [succ: {}] in {}sec, spd {}mps\n",
-                       true, GetDeltaS(t1, t0),
+            fmt::print("Successfully got outputs in {} sec, spd {}mps\n",
+                       GetDeltaS(t1, t0),
                        min_param_no_mirror.value_or(kNaN));
           } else {
-            fmt::print("[RRM] Got Outputs [succ: {}] in {}sec, spd {}mps\n",
-                       true, GetDeltaS(t1, t0), risk_inputs.rover_state_.u_);
+            fmt::print("Successfully got outputs in {} sec, spd {}mps\n",
+                       GetDeltaS(t1, t0),
+                       risk_inputs.rover_state_.u_);
           }
         } else {
-          fmt::print("No Successes, zeroing outputs\n");
+          fmt::print("No successes\n");
           arr_out[0] = false;
           arr_out[1] = 0;
           arr_out[2] = 0;
@@ -1133,7 +888,6 @@ public:
                      false, GetDeltaS(t1, t0), risk_inputs.rover_state_.u_);
         }
       }
-      fmt::print("Setting outputs[0]\n");
       outputs[0] = arr_out;
     } catch (std::runtime_error e) {
       fmt::print(stderr, "Runtime Error Caught: {}\n", e.what());

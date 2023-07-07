@@ -85,15 +85,14 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
     const ::roahm::FrsTotal& frs_total,
     const ::roahm::RoverState predicted_state, const double max_spd = 32.0,
     const double max_pos_delta_spd = 100.0,
-    const double max_neg_delta_spd = 14.0, const int every_n_spd_changes = 3) {
+    const double max_neg_delta_spd = 14.0, const int every_n_spd_changes = 3,
+    const bool check_mirrors = true) {
   // TODO REMOVE
-  fmt::print("FindAllValidFrses Checkpoint 00\n");
   const auto u0 = predicted_state.u_;
   const auto v0 = predicted_state.v_;
   const auto r0 = predicted_state.r_;
   auto check_frs = [u0, v0, r0, max_spd, max_pos_delta_spd, max_neg_delta_spd](
                        const ::roahm::Vehrs& vehrs, const bool mirror) -> bool {
-    fmt::print("check_frs Checkpoint 00\n");
     // Used the mirrored v and r values just in case the centers
     // are ever non-zero
     const double mirror_mult = mirror ? -1 : 1;
@@ -105,7 +104,6 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
     const auto v_cg = vehrs.GetVCenterGen();
     const auto r_cg = vehrs.GetRCenterGen();
 
-    fmt::print("check_frs Checkpoint 02\n");
     // Compute bounds
     const auto u_max = u_cg.first + std::abs(u_cg.second);
     const auto u_min = u_cg.first - std::abs(u_cg.second);
@@ -121,12 +119,10 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
 
     const bool init_conds_ok = u_ok and v_ok and r_ok;
 
-    fmt::print("check_frs Checkpoint 03\n");
     if (not init_conds_ok) {
       return false;
     }
 
-    fmt::print("check_frs Checkpoint 04\n");
     if (vehrs.GetManuType() == ManuType::kSpdChange) {
       if (vehrs.GetTrajParamMax() > max_spd) {
         return false;
@@ -141,20 +137,17 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
         return false;
       }
     }
-    fmt::print("check_frs Checkpoint 05\n");
 
     return true;
   };
 
   std::vector<::roahm::FrsSelectInfo> frs_select_info;
 
-  fmt::print("FindAllValidFrses Checkpoint 01\n");
   for (int u0_idx = 0; u0_idx < frs_total.megas_.size(); ++u0_idx) {
     const auto& mega = frs_total.megas_.at(u0_idx);
     const auto& au = mega.au_;
     const auto& dir = mega.dir_;
     const auto& lan = mega.lan_;
-    fmt::print("FindAllValidFrses Checkpoint 02\n");
     {
       std::vector<::roahm::FrsSelectInfo> available_speed_changes;
       for (int idx0 = 0; idx0 < au.size(); ++idx0) {
@@ -173,7 +166,6 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
         }
       }
     }
-    fmt::print("FindAllValidFrses Checkpoint 03\n");
     for (int idx0 = 0; idx0 < dir.size(); ++idx0) {
       const auto& dir_inner = dir.at(idx0);
       for (int idx1 = 0; idx1 < dir_inner.size(); ++idx1) {
@@ -182,47 +174,33 @@ inline static std::vector<::roahm::FrsSelectInfo> FindAllValidFrses(
           frs_select_info.push_back(::roahm::FrsSelectInfo{
               ::roahm::ManuType::kDirChange, u0_idx, idx0, idx1, false});
         }
-        if (check_frs(frs, true)) {
+        if (check_mirrors and check_frs(frs, true)) {
           frs_select_info.push_back(::roahm::FrsSelectInfo{
               ::roahm::ManuType::kDirChange, u0_idx, idx0, idx1, true});
         }
       }
     }
-    fmt::print("FindAllValidFrses Checkpoint 04\n");
     for (int idx0 = 0; idx0 < lan.size(); ++idx0) {
-      fmt::print("FindAllValidFrses Checkpoint 04.0\n");
       const auto& lan_inner = lan.at(idx0);
-      fmt::print("FindAllValidFrses Checkpoint 04.1\n");
       for (int idx1 = 0; idx1 < lan_inner.size(); ++idx1) {
-        fmt::print("FindAllValidFrses Checkpoint 04.2\n");
         const auto& frs = lan_inner.at(idx1);
-        fmt::print("FindAllValidFrses Checkpoint 04.3\n");
         if (check_frs(frs, false)) {
-          fmt::print("FindAllValidFrses Checkpoint 04.30\n");
           frs_select_info.push_back(::roahm::FrsSelectInfo{
               ::roahm::ManuType::kLanChange, u0_idx, idx0, idx1, false});
-          fmt::print("FindAllValidFrses Checkpoint 04.31\n");
         }
-        fmt::print("FindAllValidFrses Checkpoint 04.4\n");
-        if (check_frs(frs, true)) {
-          fmt::print("FindAllValidFrses Checkpoint 04.40\n");
+        if (check_mirrors and check_frs(frs, true)) {
           frs_select_info.push_back(::roahm::FrsSelectInfo{
               ::roahm::ManuType::kLanChange, u0_idx, idx0, idx1, true});
-          fmt::print("FindAllValidFrses Checkpoint 04.41\n");
         }
-        fmt::print("FindAllValidFrses Checkpoint 04.5\n");
       }
     }
-    fmt::print("FindAllValidFrses Checkpoint 05\n");
 
     // Don't cover two u0 bins. If we've found any valid ones,
     // just exit before the next u0 index
     if (frs_select_info.size() > 0) {
       break;
     }
-    fmt::print("FindAllValidFrses Checkpoint 06\n");
   }
-  fmt::print("FindAllValidFrses Checkpoint 07\n");
   return frs_select_info;
 }
 

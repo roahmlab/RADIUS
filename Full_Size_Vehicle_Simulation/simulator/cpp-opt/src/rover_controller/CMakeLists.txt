@@ -14,22 +14,7 @@ enable_testing()
 include(CTest)
 link_directories(/usr/local/lib/)
 
-message(STATUS "CHECKPOINT 00")
-# Matplot++
 include(FetchContent)
-FetchContent_Declare(matplotplusplus
-        GIT_REPOSITORY https://github.com/alandefreitas/matplotplusplus
-        GIT_TAG origin/master) # or whatever tag you want
-FetchContent_GetProperties(matplotplusplus)
-message(STATUS "CHECKPOINT 01")
-
-if(NOT matplotplusplus_POPULATED)
-	message(STATUS "NOT POPULATED")
-    FetchContent_Populate(matplotplusplus)
-    add_subdirectory(${matplotplusplus_SOURCE_DIR} ${matplotplusplus_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
-
-
 FetchContent_Declare(fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
   GIT_TAG tags/9.1.0
@@ -144,15 +129,13 @@ target_compile_options(CudaLib PUBLIC -O3)
 
 add_library(MainLib ${SRC_FILES_NO_EXEC})
 target_include_directories(MainLib PUBLIC src include ${catkin_INCLUDE_DIRS} /usr/include/python3.8 ${CUDA_INCLUDE_DIRS})
-target_link_libraries(MainLib CudaLib ${catkin_LIBRARIES} ipopt python3.8 pthread Eigen3::Eigen matplot fmt::fmt)
+target_link_libraries(MainLib CudaLib ${catkin_LIBRARIES} ipopt python3.8 pthread Eigen3::Eigen fmt::fmt)
 
 function(add_rover_executable EXEC_TARGET_NAME EXEC_FNAME IS_MEX)
   if(IS_MEX)
-    matlab_add_mex(NAME ${EXEC_TARGET_NAME} SRC ${EXEC_FNAME} plotting/plot_interface_matlab_impl.cc)
-    #matlab_add_mex(NAME ${EXEC_TARGET_NAME} SRC ${EXEC_FNAME} ${SRC_FILES_NO_EXEC} ${INCLUDE_FILES})
+    matlab_add_mex(NAME ${EXEC_TARGET_NAME} SRC ${EXEC_FNAME})
   else()
-    add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME} plotting/plot_interface_matplot_impl.cc)
-    #add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME} ${SRC_FILES_NO_EXEC} ${INCLUDE_FILES})
+    add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME})
   endif()
 
   add_dependencies(${EXEC_TARGET_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -163,8 +146,7 @@ function(add_rover_executable EXEC_TARGET_NAME EXEC_FNAME IS_MEX)
 endfunction()
 
 function(add_rover_test EXEC_TARGET_NAME EXEC_FNAME)
-  add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME} plotting/plot_interface_matplot_impl.cc)
-  #add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME} ${INCLUDE_FILES})
+  add_executable(${EXEC_TARGET_NAME} ${EXEC_FNAME} ${INCLUDE_FILES})
   add_dependencies(${EXEC_TARGET_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
   target_include_directories(${EXEC_TARGET_NAME} PUBLIC ${catkin_INCLUDE_DIRS} ${IPOPT_INCLUDE_DIRS} /usr/include/python3.8 )
   target_link_libraries(${EXEC_TARGET_NAME} MainLib)
@@ -188,14 +170,8 @@ add_rover_test(CUDA_PROB_TEST test/cuda_prob_test.cc)
 add_rover_test(FL_ZONO_CONSTRAINT_TEST test/fl_zono_constraint_test.cc)
 add_rover_test(INDIVIDUAL_MU_SIGMA_TEST test/individual_mu_sigma_test.cc)
 add_rover_test(WAYPOINT_COST_TEST test/waypoint_cost_test.cc)
-add_rover_test(TRIANGLE_GEN_TEST test/triangle_gen_test.cc)
-add_rover_test(VEHRS_PLOT_TEST test/vehrs_plot_test.cc)
-add_rover_test(COMPARISON_METHODS_TEST test/comparison_methods_test.cc)
-add_rover_executable(PROB_INTEG_MEX mex/prob_integ_mex.cc TRUE)
-add_rover_executable(PRE_SLICE_MEX mex/pre_slice_mex.cc TRUE)
 add_rover_executable(RISK_RTD_MEX mex/risk_rtd_mex.cc TRUE)
 add_rover_executable(MATLAB_PROCESS_FRS mex/matlab_process_frses.cc TRUE)
-add_rover_executable(PLOT_MEX mex/plot_mex.cc TRUE)
 add_rover_executable(RISK_RTD_ROS ros_exec/risk_rtd_ros.cc FALSE)
 
 #if (BUILD_DOXYGEN_DOCS)

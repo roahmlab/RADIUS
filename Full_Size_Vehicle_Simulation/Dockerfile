@@ -395,7 +395,7 @@ WORKDIR $TOP_LEVEL_SRC_DIR
 
 #RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.1.2/zsh-in-docker.sh)"
 
-ENV PATH /usr/local/nvidia/bin:/usr/local/cuda-11.7/bin:${PATH}
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda-12.1/bin:${PATH}
 #ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
 #=============================================================
@@ -440,7 +440,7 @@ RUN wget http://archive.ubuntu.com/ubuntu/pool/main/v/valgrind/valgrind_3.15.0-1
 # dpkg --ignore-depends=libc6-dbg -i valgrind_3.15.0-1ubuntu9.1_amd64.deb && \
 # rm -f valgrind_3.15.0-1ubuntu9.1_amd64.deb
 
-ENV PATH="${PATH}:/usr/local/cuda-11.7/bin"
+ENV PATH="${PATH}:/usr/local/cuda-12.1/bin"
 
 WORKDIR /installs
 RUN git clone https://github.com/ninja-build/ninja.git && \

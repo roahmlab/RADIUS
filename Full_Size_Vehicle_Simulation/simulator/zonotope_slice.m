@@ -33,8 +33,7 @@ if size(slice_lambda, 2) > 1
     error('slice_lambda is not 1D');
 end
 if any(abs(slice_lambda) > 1)
-%      warning(num2str(slice_lambda(:)')+"Slice point is outside bounds of reach set, and therefore is not verified");
-     if any(abs(slice_lambda) > 1.02)
+     if any(abs(slice_lambda) > 1.02) % avoid numerical issue 
          error(num2str(slice_lambda(:)')+"Slice point is outside bounds of reach set, and therefore is not verified");
      end
     

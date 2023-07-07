@@ -81,29 +81,12 @@ classdef agentHelper < handle
                     stop_sim = 1;
                  end
             elseif strcmp(AH.flags.safety_layer, 'A')
-%                 try
-%                     [k]= AH.gen_parameter(world_info);
-%                 catch
-                    agent_info = AH.get_agent_info();
-%                   path = [-90 5 0;
-%                      -75 5 0;
-%                      -72.4 4.5 -0.2;
-%                      -60 4 0;
-%                      -20 4 0]';
-                    % use heading to the waypoint as desired heading;
-                    wp = AH.HLP.get_waypoint(world_info,agent_info.state(:,end));
-                    wp1 = (wp - agent_info.state(1:3,end)) * 0.333 + agent_info.state(1:3,end);
-                    wp2 = (wp - agent_info.state(1:3,end)) * 0.667 + agent_info.state(1:3,end);
-%                     [wp,wp1,wp2] = get_waypoint_from_path_var_lookahead(agent_info.state(:,end), AH.planned_path, 4);
-%                     quiver(wp(1),wp(2),cos(wp(3)),sin(wp(3)),0.5,'g-','LineWidth',3);
-%                     quiver(wp1(1),wp1(2),cos(wp1(3)),sin(wp1(3)),0.5,'g-','LineWidth',3);
-%                     quiver(wp2(1),wp2(2),cos(wp2(3)),sin(wp2(3)),0.5,'g-','LineWidth',3);
-%                     wp(3) = desired_heading ;
-%                     quiver(wp(1),wp(2),cos(wp(3)),sin(wp(3)),'g');
-                    
-                    k = AH.gen_parameter_standalone(world_info,agent_info.state(:,end),[wp,wp1,wp2]);
-                    
-%                 end
+                agent_info = AH.get_agent_info();
+                wp = AH.HLP.get_waypoint(world_info,agent_info.state(:,end));
+                wp1 = (wp - agent_info.state(1:3,end)) * 0.333 + agent_info.state(1:3,end);
+                wp2 = (wp - agent_info.state(1:3,end)) * 0.667 + agent_info.state(1:3,end);
+                k = AH.gen_parameter_standalone(world_info,agent_info.state(:,end),[wp,wp1,wp2]);
+
                 replace_distance = 0;
                 action_replaced = 1;
                 no_replace_action = 0;
@@ -122,76 +105,6 @@ classdef agentHelper < handle
                 end
                 
                 
-                if AH.plot_flag % this is for highway only, may have bug for drone
-%                     h1 = figure(1); 
-%                     AH.plot();
-%                     AH.A.plot();
-%                     state=AH.A.state(:,end);
-% %                     text(state(1)+20,2,[num2str(state(4)) 'm/s'],'Color','red','FontSize',15)
-%                     figure(9);
-%                     set(gca,'FontSize',15)
-%                     axl=subplot(1,2,1);
-%                     axis equal
-%                     set(gca,'FontSize',15)
-%                     copyobj(h1.Children.Children,axl)
-%                     axl.XLim = h1.Children.XLim;axl.YLim = h1.Children.YLim;
-%                     if axl.XLim(1)+15 > axl.XLim(2)-30
-%                         axl.XLim = [axl.XLim(1) axl.XLim(2)];
-%                     else
-%                         axl.XLim = [axl.XLim(1)+15 axl.XLim(2)-30];
-%                     end
-%                         
-%                     xlabel('x [m]');
-%                     ylabel('y [m]');
-                    
-                end
-
-                 %if we are using CCPPBA_agent, as temporary fix, use the
-                %solved for FRS as the way to generate the reference
-                %trajectory for the vehicle to follow since we don't have
-                %access to the parametrized trajectories Sean used for the
-                %FRS
-
-                if isequal(agent_info.type,'CCPBA_agent')
-%                     ZZ = AH.updateView(AH.feas); %generate FRS geometric shapes
-%                     traj = zeros(length(ZZ),2);
-%                     traj(1,:) = [agent_info.state(1,end), agent_info.state(2,end)];
-% 
-%                     %take center of the FRS at each time step and use
-%                     %that as the trajectory to follow
-%                     for ii = 2:length(ZZ)
-%                         xpt=(max(ZZ{ii}(1,:)) + min(ZZ{ii}(1,:)))/2;
-%                         ypt=(max(ZZ{ii}(2,:)) + min(ZZ{ii}(2,:)))/2;
-%                         traj(ii,:) = [xpt,ypt];  
-%                     end
-% 
-%                     traj = traj-traj(1,:); %convert to local frame positions
-%                     traj = [[0:0.5:5]',traj]; %add time stamps to states
-%                     AH.A.ccpba_traj = traj;
-% 
-% %                     %generate fit coefficients to use to generate pdes in
-% %                     %the dynamics
-% %                     ft = fittype('c1*x^5 + c2*x^4 +c3*x^3');
-% %                     fit_eqn = fit(AH.A.ccpba_traj(:,1),AH.A.ccpba_traj(:,3),ft,'StartPoint', [0 0 0]);
-% 
-%                     ft = fittype('c1*x^5 + c2*x^4 +c3*x^3 + c4*x^2 +c5*x');
-%                     fit_eqn = fit(AH.A.ccpba_traj(:,1),AH.A.ccpba_traj(:,3),ft,'StartPoint', [0 0 0 0 0]);
-%                     AH.A.trajcoeffs = coeffvalues(fit_eqn);
-% 
-%                     %fit the an equation for the evolution of y with
-%                     %respect to x
-% 
-%                     f_x = fit(AH.A.ccpba_traj(:,2),AH.A.ccpba_traj(:,3),ft,'StartPoint', [0 0 0 0 0]);
-%                     c_fx = coeffvalues(f_x);
-%                     
-%                     x = AH.A.ccpba_traj(:,2);
-%                     psi_traj = atan(5*c_fx(1)*x.^4 + 4*c_fx(2)*x.^3 + 3*c_fx(3)*x.^2 + 2*c_fx(4)*x + c_fx(5));
-% 
-%                     ft2 = fittype('c1*x^6 + c2*x^5 + c3*x^4 + c4*x^3 + c5*x^2');
-%                     f_psi = fit(AH.A.ccpba_traj(:,1),psi_traj,ft2,'StartPoint', [0 0 0 0 0]);
-%                     AH.A.fpsi_coeffs = coeffvalues(f_psi);
-
-                end
 
                 %propagate state forward
                 AH.A.move(AH.t_move,AH.T, AH.U, AH.Z);

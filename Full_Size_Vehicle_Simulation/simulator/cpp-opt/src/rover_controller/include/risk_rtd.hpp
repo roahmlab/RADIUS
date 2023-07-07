@@ -17,12 +17,11 @@
 #include "frs_total.hpp"
 #include "ipopt_string_utils.hpp"
 #include "manu_type.hpp"
-#include "monte_carlo_ipopt.hpp"
-#include "monte_carlo_27_ipopt.hpp"
 #include "mu_sigma_multi.hpp"
 #include "risk_problem_description.hpp"
 #include "risk_rtd_ipopt_problem.hpp"
 #include "rover_state.hpp"
+#include "timing_util.hpp"
 #include "waypoint.hpp"
 
 namespace roahm {
@@ -51,7 +50,13 @@ public:
 
   template <typename OptProblemType>
   std::vector<RiskRtdPlanningOutputsIpopt>
-  RunPlanningIteration(const RiskProblemDescription& risk_inputs, const bool use_fixed_risk_threshold, const double risk_threshold) const;
+  RunPlanningIteration(
+    const RiskProblemDescription& risk_inputs, 
+    const bool use_fixed_risk_threshold, 
+    const double risk_threshold, 
+    const bool check_mirrors=true, 
+    const bool use_waypoint_modification_heuristic=true,
+    const bool use_left_cost_function = false) const;
 
   FrsTotal GetFrsTotal() const;
 };
@@ -59,17 +64,31 @@ public:
 template <typename... Args>
 void PlanDbg(const fmt::format_string<Args...>&& format_string,
              Args&&... args) {
-  fmt::print("[PLAN IT] {}",
-             fmt::format(format_string, std::forward<Args>(args)...));
+  return; // Enable if we want debug info
+  //fmt::print("[PLAN IT] {}",
+  //           fmt::format(format_string, std::forward<Args>(args)...));
 }
 
 template <typename OptProblemType>
 std::vector<RiskRtdPlanningOutputsIpopt>
-RiskRtd::RunPlanningIteration(const RiskProblemDescription& risk_inputs, const bool use_fixed_risk_threshold, const double risk_threshold) const {
+RiskRtd::RunPlanningIteration(
+    const RiskProblemDescription& risk_inputs, 
+    const bool use_fixed_risk_threshold, 
+    const double risk_threshold, 
+    const bool check_mirrors, 
+    const bool use_waypoint_modification_heuristic,
+    const bool use_left_cost_function) const {
   const auto iter_t0 = Tick();
   PlanDbg("Running planning iteration begin\n");
   PlanDbg("Finding valid FRSes\n");
-  const auto sel = FindAllValidFrses(frs_, risk_inputs.rover_state_);
+  const auto sel = FindAllValidFrses(
+    frs_, 
+    risk_inputs.rover_state_,
+    32.0,
+    100.0,
+    14.0, 
+    3,
+    check_mirrors);
   PlanDbg("Found {} valid FRSes out of {}\n", sel.size(), frs_.GetNumFrses());
 
   const int num_apps = 6;
@@ -95,37 +114,13 @@ RiskRtd::RunPlanningIteration(const RiskProblemDescription& risk_inputs, const b
     const auto vehrs = frs_.GetVehrs(info).SliceAt(risk_inputs.rover_state_.u_,
                                                    risk_inputs.rover_state_.v_,
                                                    risk_inputs.rover_state_.r_);
-    const auto opt_inputs = GetOptInputs(frs_, info, risk_inputs, use_fixed_risk_threshold, risk_threshold);
+    const auto opt_inputs = GetOptInputs(frs_, info, risk_inputs, use_waypoint_modification_heuristic, use_fixed_risk_threshold, risk_threshold, use_left_cost_function);
     const std::array<double, 3> u0v0r0_slice_beta =
         vehrs.GetU0V0R0SliceBeta(risk_inputs.rover_state_);
-    if constexpr (std::is_same_v<
-                      OptProblemType,
-                      ::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem>) {
-      nlps.emplace_back(
-          new ::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem{
-              vehrs, u0v0r0_slice_beta, opt_inputs});
-    } else if (std::is_same_v<
-                   OptProblemType,
-                   ::roahm::monte_carlo_ipopt::MonteCarloIpoptProblem>) {
-      const int num_traj_samples{100};
-      const std::uint32_t rand_seed{0};
-      nlps.emplace_back(new ::roahm::monte_carlo_ipopt::MonteCarloIpoptProblem{
-          vehrs, u0v0r0_slice_beta, opt_inputs, rand_seed, frs_.GetVehrs(info),
-          risk_inputs.rover_state_, risk_comparisons::EnvFootprints::Default(),
-          num_traj_samples});
-    } else if (std::is_same_v<OptProblemType,
-    ::roahm::monte_carlo_27_ipopt::MonteCarlo27IpoptProblem>) {
-      const int num_traj_samples{100};
-      const std::uint32_t rand_seed{0};
-      nlps.emplace_back(new ::roahm::monte_carlo_27_ipopt::MonteCarlo27IpoptProblem{
-        vehrs, u0v0r0_slice_beta, opt_inputs, rand_seed, frs_.GetVehrs(info),
-        risk_inputs.rover_state_, risk_comparisons::EnvFootprints::Default(),
-        num_traj_samples,
-        info.mirror_,
-        risk_inputs
-      });
-    }
-    // static_assert(kIsRiskRtd);
+    static_assert(std::is_same_v<OptProblemType, ::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem>);
+    nlps.emplace_back(
+        new ::roahm::risk_rtd_ipopt_problem::RiskRtdIpoptProblem{
+            vehrs, u0v0r0_slice_beta, opt_inputs});
   }
 
   PlanDbg("Setting up problem function\n");
@@ -136,7 +131,7 @@ RiskRtd::RunPlanningIteration(const RiskProblemDescription& risk_inputs, const b
   const double u0 = risk_inputs.rover_state_.u_;
   auto run_problems = [&apps, &iter_ct, &nlps, &success_ct, &sel,
                        &full_opt_info_all_problems_, &u0,
-                       num_problems](const int app_idx) -> void {
+                       num_problems, use_waypoint_modification_heuristic](const int app_idx) -> void {
     auto& ipopt_app = apps.at(app_idx);
     while (true) {
       const auto t0 = Tick();
@@ -167,7 +162,9 @@ RiskRtd::RunPlanningIteration(const RiskProblemDescription& risk_inputs, const b
       const std::optional<PointXYH> final_location{
           curr_nlp->GetFeasibleLocation()};
       const Waypoint<true, true> waypoint_with_heuristic{
-          curr_nlp->GetWaypointHeuristicAdjusted()};
+          use_waypoint_modification_heuristic ? 
+            (curr_nlp->GetWaypointHeuristicAdjusted()) : 
+            (curr_nlp->GetWaypointLocalMirrorAccounted())};
       const Waypoint<true, true> waypoint_local_mirror_accounted{
           curr_nlp->GetWaypointLocalMirrorAccounted()};
       // TODO or: status == Ipopt::ApplicationReturnStatus::Solve_Succeeded or

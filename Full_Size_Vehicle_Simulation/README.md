@@ -9,8 +9,13 @@
 ## Running the Simulation
 * In `Full_Size_Vehicle_Simulation/`, run `./build-docker.sh` to build the Docker
 * In `Full_Size_Vehicle_Simulation/simulator/`, run `./run-docker.sh` to run the Docker
-* In the docker in the `/simulator` directory:
-  1. Run `./run-matlab.sh`. MATLAB needs to be activated at the first time when it runs in the docker. In case MATLAB requires account verification but fails to automatically open a browser, try to log in your account and verify the account [online](https://matlab.mathworks.com/).
-  2. Run `fully_preprocess_frs.m` to generate the C++ condensed version of the FRSes needed.
-  3. Open another terminal, and get the 'CONTAINER ID' using `docker ps`. Run `docker exec -it replace_with_your_CONTAINER_ID /bin/bash` to enter the same running docker image, and run `./ninja-cpp-opt.sh` to build the necessary MEX file.
-  4. In MATLAB invoked by `./run-matlab.sh`, open [RADIUS_simulation_main.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/online/RADIUS_simulation_main.m) and run the script. Note that setting the ```scene_type``` variable to 1 and 2 runs the highway simulations and left turning simulations respectively.
+* Inside docker in the `/simulator` directory, run `./run-matlab.sh` to invoke MATLAB. MATLAB needs to be activated at the first time when it runs in the docker. In case MATLAB requires account verification but fails to automatically open a browser, try to log in your account and verify the account [online](https://matlab.mathworks.com/) by following steps below.
+  1. Click your name initial on the right top corner.
+  2. Click 'My Account'.
+  3. Click your license number.
+  4. Click 'Install and Activate', then click 'View Current Activations' under 'RELATED TASKS'.
+  5. Click 'Activate a Computer', then fill in the activation form. Note to choose 'R2022a' as the release version. 
+* Open another terminal, and get the 'CONTAINER ID' using `docker ps`. Run `docker exec -it replace_with_your_CONTAINER_ID /bin/bash` to enter the same running docker container, and run `./ninja-cpp-opt.sh` to build the necessary MEX file.
+* Run [fully_preprocess_frs.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/online/fully_preprocess_frs.m) to generate the C++ condensed version of the FRSes needed. Note that setting the ```is_left_turn``` variable to ```false``` and ```true``` processes FRSes for the highway simulations and left turning simulations respectively.
+* In MATLAB invoked by `./run-matlab.sh`, open [RADIUS_simulation_main.m](https://github.com/roahmlab/RADIUS/blob/main/Full_Size_Vehicle_Simulation/simulator/online/RADIUS_simulation_main.m) and run the script. Note that setting the ```scene_type``` variable to 1 and 2 runs the highway simulations and left turning simulations respectively.
+

@@ -12,4 +12,8 @@ wget https://tumcps.github.io/CORA/data/CORA_2018.zip && \
 
 rm -f CORA_2018.zip  
 
+# remove duplicated function
+rm -f zono_RTD_turtlebot_example/zonotope_slice.m
+
+
 cd ..

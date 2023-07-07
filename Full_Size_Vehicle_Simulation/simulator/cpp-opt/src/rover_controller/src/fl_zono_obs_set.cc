@@ -69,11 +69,6 @@ FlZonoObsSet::GetGenerators(int obs_idx, ::roahm::Interval t_interval) const {
                                      ? (width / 2.0)
                                      : (kFootprintWidthExtent / 2.0);
 
-  // fmt::print("Width: {} (FPW: {}) (Y0: {}) (long G: {}) (lat G: {}) (length:
-  // {}) (vel: {}) (delta_t: {}) (IsStatic: {})\n",
-  //   width, kFootprintWidthExtent, dyn_obs.CenterY0(), longitudinal_gen_mag,
-  //   lateral_gen_mag, length, velocity, delta_t, dyn_obs.IsStaticBoundary());
-  // const double lateral_gen_mag = (width / 2.0);
   const double cos_h = std::cos(heading_rad);
   const double sin_h = std::sin(heading_rad);
   const double x_gen_1 = longitudinal_gen_mag * cos_h;

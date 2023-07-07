@@ -24,6 +24,9 @@ namespace roahm {
 
 FrsTotal LoadFrsBinary(const std::string& file_name) {
   std::ifstream file_in(file_name, std::ios::binary);
+  if (not file_in) {
+    throw std::runtime_error("Could not open file at " + file_name);
+  }
   const FrsTotal frs{ReadFromBinFile<FrsTotal>(file_in)};
   file_in.close();
   return frs;
