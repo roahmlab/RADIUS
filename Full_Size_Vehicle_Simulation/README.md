@@ -8,7 +8,7 @@
 
 ## Running the Simulation
 * In `Full_Size_Vehicle_Simulation/`, run `./build-docker.sh` to build the Docker
-* In `Full_Size_Vehicle_Simulation/simulator/`, run `./run-docker.sh` to run the Docker
+* In `Full_Size_Vehicle_Simulation/`, run `./run-docker.sh` to run the Docker
 * Inside docker in the `/simulator` directory, run `./run-matlab.sh` to invoke MATLAB. MATLAB needs to be activated at the first time when it runs in the docker. In case MATLAB requires account verification but fails to automatically open a browser, try to log in your account and verify the account [online](https://matlab.mathworks.com/) by following steps below.
   1. Click your name initial on the right top corner.
   2. Click 'My Account'.
